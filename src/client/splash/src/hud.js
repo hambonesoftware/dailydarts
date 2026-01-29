@@ -203,6 +203,22 @@ function ensureHudStyles() {
   z-index: 9999;
   display: none;
   pointer-events: auto;
+
+  --dd-leaderboard-row-height: 26px;
+  --dd-leaderboard-row-font: 13px;
+  --dd-leaderboard-max-rows: 7;
+  --dd-leaderboard-title-size: 16px;
+  --dd-logo-max-height: 40px;
+  --dd-footer-height: 40px;
+}
+
+#dd-roundend.is-tall {
+  --dd-leaderboard-row-height: 28px;
+  --dd-leaderboard-row-font: 14px;
+  --dd-leaderboard-max-rows: 11;
+  --dd-leaderboard-title-size: 18px;
+  --dd-logo-max-height: 48px;
+  --dd-footer-height: 44px;
 }
 
 #dd-roundend.is-show {
@@ -230,13 +246,30 @@ function ensureHudStyles() {
   -webkit-backdrop-filter: blur(12px);
 }
 
+#dd-roundend .dd-roundend-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+#dd-roundend .dd-roundend-logo {
+  max-width: 45%;
+  max-height: var(--dd-logo-max-height);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  display: block;
+}
+
 #dd-roundend .dd-roundend-title {
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
   font-weight: 850;
-  font-size: 16px;
+  font-size: var(--dd-leaderboard-title-size);
   letter-spacing: 0.3px;
   color: rgba(255,255,255,0.92);
-  margin-bottom: 10px;
+  text-align: center;
 }
 
 #dd-roundend .dd-roundend-score {
@@ -248,31 +281,83 @@ function ensureHudStyles() {
   margin-bottom: 12px;
 }
 
-#dd-roundend .dd-roundend-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px 10px;
-  margin-bottom: 12px;
+#dd-roundend .dd-roundend-leaderboard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
 }
 
-#dd-roundend .dd-roundend-item {
+#dd-roundend .dd-roundend-leaderboard-body {
   display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: calc(var(--dd-leaderboard-row-height) * var(--dd-leaderboard-max-rows));
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+#dd-roundend .dd-roundend-row {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 10px;
 
-  padding: 8px 10px;
+  padding: 0 10px;
   border-radius: 12px;
   background: rgba(255,255,255,0.06);
   border: 1px solid rgba(255,255,255,0.10);
 
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
   font-weight: 650;
-  font-size: 12px;
+  font-size: var(--dd-leaderboard-row-font);
+  height: var(--dd-leaderboard-row-height);
   letter-spacing: 0.2px;
   color: rgba(255,255,255,0.85);
 }
 
-#dd-roundend .dd-roundend-footer {
+#dd-roundend .dd-roundend-row.is-empty {
+  justify-content: center;
+  font-style: italic;
+}
+
+#dd-roundend .dd-roundend-row-name {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#dd-roundend .dd-roundend-row-rank,
+#dd-roundend .dd-roundend-row-score {
+  min-width: 46px;
+  font-variant-numeric: tabular-nums;
+}
+
+#dd-roundend .dd-roundend-row-rank {
+  text-align: left;
+}
+
+#dd-roundend .dd-roundend-row-score {
+  text-align: right;
+}
+
+#dd-roundend .dd-roundend-footerline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--dd-footer-height);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.2px;
+  color: rgba(255,255,255,0.9);
+  margin-bottom: 8px;
+}
+
+#dd-roundend .dd-roundend-actions {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
@@ -305,7 +390,7 @@ function ensureHudStyles() {
   #dd-hud { left: 10px; top: 10px; }
   #dd-hud .dd-hud-card { padding: 9px 11px; border-radius: 12px; }
   #dd-hud .dd-hud-score { font-size: 18px; }
-  #dd-roundend .dd-roundend-grid { grid-template-columns: 1fr; }
+  #dd-roundend .dd-roundend-card { padding: 14px 14px 12px 14px; }
 }
 `;
   document.head.appendChild(style);
@@ -420,6 +505,14 @@ export function createRoundHud(options = {}) {
   const roundEndCard = document.createElement("div");
   roundEndCard.className = "dd-roundend-card";
 
+  const roundEndHeader = document.createElement("div");
+  roundEndHeader.className = "dd-roundend-header";
+
+  const roundEndLogo = document.createElement("img");
+  roundEndLogo.className = "dd-roundend-logo";
+  roundEndLogo.src = "assets/default-icon.png";
+  roundEndLogo.alt = "Daily Darts";
+
   const roundEndTitle = document.createElement("div");
   roundEndTitle.className = "dd-roundend-title";
   roundEndTitle.textContent = "Round Complete";
@@ -428,11 +521,18 @@ export function createRoundHud(options = {}) {
   roundEndScore.className = "dd-roundend-score";
   roundEndScore.textContent = "Score: 0";
 
-  const roundEndGrid = document.createElement("div");
-  roundEndGrid.className = "dd-roundend-grid";
+  const roundEndLeaderboard = document.createElement("div");
+  roundEndLeaderboard.className = "dd-roundend-leaderboard";
 
-  const roundEndFooter = document.createElement("div");
-  roundEndFooter.className = "dd-roundend-footer";
+  const roundEndLeaderboardBody = document.createElement("div");
+  roundEndLeaderboardBody.className = "dd-roundend-leaderboard-body";
+
+  const roundEndFooterLine = document.createElement("div");
+  roundEndFooterLine.className = "dd-roundend-footerline";
+  roundEndFooterLine.textContent = "You are #—";
+
+  const roundEndActions = document.createElement("div");
+  roundEndActions.className = "dd-roundend-actions";
 
   const btnAgain = document.createElement("button");
   btnAgain.className = "dd-roundend-btn";
@@ -444,13 +544,19 @@ export function createRoundHud(options = {}) {
   btnClose.type = "button";
   btnClose.textContent = "Close";
 
-  roundEndFooter.appendChild(btnClose);
-  roundEndFooter.appendChild(btnAgain);
+  roundEndActions.appendChild(btnClose);
+  roundEndActions.appendChild(btnAgain);
 
-  roundEndCard.appendChild(roundEndTitle);
+  roundEndHeader.appendChild(roundEndLogo);
+  roundEndHeader.appendChild(roundEndTitle);
+
+  roundEndLeaderboard.appendChild(roundEndLeaderboardBody);
+
+  roundEndCard.appendChild(roundEndHeader);
   roundEndCard.appendChild(roundEndScore);
-  roundEndCard.appendChild(roundEndGrid);
-  roundEndCard.appendChild(roundEndFooter);
+  roundEndCard.appendChild(roundEndLeaderboard);
+  roundEndCard.appendChild(roundEndFooterLine);
+  roundEndCard.appendChild(roundEndActions);
 
   roundEnd.appendChild(roundEndBackdrop);
   roundEnd.appendChild(roundEndCard);
@@ -469,44 +575,55 @@ export function createRoundHud(options = {}) {
 
   function showRoundEnd(summary = {}) {
     const totalScore = safeInt(summary.totalScore, 0);
-    const throwsArr = Array.isArray(summary.throws) ? summary.throws : [];
+    const leaderboard = summary?.leaderboard ?? null;
+    const entries = Array.isArray(leaderboard?.top) ? leaderboard.top : [];
+    const rankValue =
+      typeof leaderboard?.rank === "number" ? leaderboard.rank : null;
 
     roundEndScore.textContent = `Score: ${totalScore}`;
+    roundEndTitle.textContent = leaderboard ? "Leaderboard" : "Round Complete";
+    roundEndFooterLine.textContent =
+      typeof rankValue === "number" ? `You are #${rankValue}` : "You are #—";
 
     // Clear old rows
-    while (roundEndGrid.firstChild) {
-      roundEndGrid.removeChild(roundEndGrid.firstChild);
+    while (roundEndLeaderboardBody.firstChild) {
+      roundEndLeaderboardBody.removeChild(roundEndLeaderboardBody.firstChild);
     }
 
-    // Add items
-    // Expect entries like { label:"T20", points:60 } OR strings
-    for (let i = 0; i < throwsArr.length; i++) {
-      const t = throwsArr[i];
-      let label = "";
-      let pts = 0;
+    if (!entries.length) {
+      const emptyRow = document.createElement("div");
+      emptyRow.className = "dd-roundend-row is-empty";
+      emptyRow.textContent = "No scores yet";
+      roundEndLeaderboardBody.appendChild(emptyRow);
+    } else {
+      for (let i = 0; i < entries.length; i++) {
+        const entry = entries[i];
+        const row = document.createElement("div");
+        row.className = "dd-roundend-row";
 
-      if (typeof t === "string") {
-        label = t;
-        pts = 0;
-      } else if (t && typeof t === "object") {
-        label = safeStr(t.label, "");
-        pts = safeInt(t.points, 0);
+        const rankEl = document.createElement("div");
+        rankEl.className = "dd-roundend-row-rank";
+        rankEl.textContent = entry?.rank ? `#${entry.rank}` : `#${i + 1}`;
+
+        const nameEl = document.createElement("div");
+        nameEl.className = "dd-roundend-row-name";
+        nameEl.textContent =
+          entry?.metadata?.username || entry?.userId || "anonymous";
+
+        const scoreEl = document.createElement("div");
+        scoreEl.className = "dd-roundend-row-score";
+        scoreEl.textContent =
+          typeof entry?.score === "number" ? `${entry.score}` : "0";
+
+        row.appendChild(rankEl);
+        row.appendChild(nameEl);
+        row.appendChild(scoreEl);
+        roundEndLeaderboardBody.appendChild(row);
       }
-
-      const item = document.createElement("div");
-      item.className = "dd-roundend-item";
-
-      const left = document.createElement("div");
-      left.textContent = `${i + 1}. ${label || "—"}`;
-
-      const right = document.createElement("div");
-      right.textContent = `+${pts}`;
-
-      item.appendChild(left);
-      item.appendChild(right);
-      roundEndGrid.appendChild(item);
     }
 
+    const isTall = window.innerHeight >= 480;
+    roundEnd.classList.toggle("is-tall", isTall);
     roundEnd.classList.add("is-show");
   }
 
