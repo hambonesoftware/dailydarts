@@ -317,6 +317,7 @@ function ensureHudStyles() {
 export function createRoundHud(options = {}) {
   const maxDarts = clamp(safeInt(options.maxDarts, 10), 1, 60);
   const injectStyles = options.injectStyles !== undefined ? !!options.injectStyles : true;
+  const stageContainer = document.getElementById("stage") ?? document.body;
 
   if (injectStyles) {
     ensureHudStyles();
@@ -366,7 +367,7 @@ export function createRoundHud(options = {}) {
   card.appendChild(lastEl);
   hud.appendChild(card);
 
-  document.body.appendChild(hud);
+  stageContainer.appendChild(hud);
 
   // -------------------------
   // Toast (optional)
@@ -379,7 +380,7 @@ export function createRoundHud(options = {}) {
   toastChip.textContent = "";
 
   toast.appendChild(toastChip);
-  document.body.appendChild(toast);
+  stageContainer.appendChild(toast);
 
   let toastTimer = null;
 
@@ -454,7 +455,7 @@ export function createRoundHud(options = {}) {
   roundEnd.appendChild(roundEndBackdrop);
   roundEnd.appendChild(roundEndCard);
 
-  document.body.appendChild(roundEnd);
+  stageContainer.appendChild(roundEnd);
 
   let onPlayAgainCb = null;
 

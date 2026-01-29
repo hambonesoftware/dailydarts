@@ -21,18 +21,33 @@ if (playtestLink) playtestLink.addEventListener("click", () => navigateTo("https
 if (discordLink) discordLink.addEventListener("click", () => navigateTo("https://discord.com/invite/R7yu2wh9Qz"));
 
 function ensureAppMount(): HTMLDivElement {
+  let stage = document.getElementById("stage") as HTMLDivElement | null;
+  if (!stage) {
+    stage = document.createElement("div");
+    stage.id = "stage";
+    stage.style.position = "relative";
+    stage.style.width = "100%";
+    stage.style.height = "100%";
+    stage.style.margin = "0 auto";
+    document.body.appendChild(stage);
+  }
+
   let el = document.getElementById("app") as HTMLDivElement | null;
-  if (el) return el;
+  if (el) {
+    if (el.parentElement !== stage) {
+      stage.appendChild(el);
+    }
+    return el;
+  }
 
   el = document.createElement("div");
   el.id = "app";
-  el.style.position = "fixed";
-  el.style.left = "0";
-  el.style.top = "0";
+  el.style.position = "absolute";
+  el.style.inset = "0";
   el.style.width = "100%";
   el.style.height = "100%";
   el.style.zIndex = "0";
-  document.body.appendChild(el);
+  stage.appendChild(el);
   return el;
 }
 
