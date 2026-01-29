@@ -196,13 +196,7 @@ async function finalizeRoundLeaderboard() {
   try {
     const leaderboard = await fetchLeaderboard();
     if (leaderboard && leaderboard.type === "leaderboard-fetch") {
-      const { username } = getPlayerIdentity();
-      const payload = {
-        score: totalScore,
-        rank: leaderboard.callerRank,
-        top: leaderboard.top,
-        username,
-      };
+      const payload = buildLeaderboardPayload(leaderboard, { includeScore: true });
 
       if (typeof actionManager.showLeaderboard === "function") {
         actionManager.showLeaderboard(payload);
@@ -210,6 +204,42 @@ async function finalizeRoundLeaderboard() {
     }
   } catch (error) {
     console.warn("Failed to fetch leaderboard", error);
+  }
+}
+
+function buildLeaderboardPayload(leaderboard, { includeScore = false } = {}) {
+  const { username } = getPlayerIdentity();
+  const payload = {
+    rank: leaderboard.callerRank,
+    top: leaderboard.top,
+    username,
+  };
+
+  if (includeScore) {
+    payload.score = totalScore;
+  }
+
+  return payload;
+}
+
+async function showIntroLeaderboard() {
+  try {
+    const leaderboard = await fetchLeaderboard();
+    if (leaderboard && leaderboard.type === "leaderboard-fetch") {
+      const payload = buildLeaderboardPayload(leaderboard);
+
+      if (typeof actionManager.showLeaderboard === "function") {
+        actionManager.showLeaderboard(payload);
+      } else if (
+        typeof actionManager.setLeaderboardData === "function" &&
+        typeof actionManager.showLogo === "function"
+      ) {
+        actionManager.setLeaderboardData(payload);
+        actionManager.showLogo({ holdForever: true });
+      }
+    }
+  } catch (error) {
+    console.warn("Failed to fetch intro leaderboard", error);
   }
 }
 
@@ -548,6 +578,8 @@ function syncBoardToWall(anchor) {
       shrinkTime: 1.25,
     });
   }
+
+  void showIntroLeaderboard();
 
   // --- TRIGGER AUTO-PLAY (intro throw) ---
   // Wait 500ms after sync so the user sees the board before the dart flies.
