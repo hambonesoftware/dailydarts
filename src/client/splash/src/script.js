@@ -129,6 +129,7 @@ function endRound() {
   }
 
   roundHud.showToast("Round complete!");
+  roundHud.showRoundEnd({ totalScore });
 
   void finalizeRoundLeaderboard();
 }
@@ -201,6 +202,8 @@ async function finalizeRoundLeaderboard() {
       if (typeof actionManager.showLeaderboard === "function") {
         actionManager.showLeaderboard(payload);
       }
+
+      roundHud.showRoundEnd({ totalScore, leaderboard: payload });
     }
   } catch (error) {
     console.warn("Failed to fetch leaderboard", error);

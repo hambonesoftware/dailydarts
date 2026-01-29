@@ -35,7 +35,10 @@ body {
   position: relative;
   width: 100%;
   height: 100%;
-  max-width: 1200px;
+  max-width: 100%;
+  max-height: 100%;
+  padding: 10px 14px;
+  box-sizing: border-box;
   margin: 0 auto;
 }
 
@@ -45,6 +48,8 @@ body {
   inset: 0;
   width: 100%;
   height: 100%;
+  max-width: 100%;
+  max-height: 100%;
 }
 
 .app {
@@ -300,6 +305,22 @@ body {
   z-index: 9999;
   display: none;
   pointer-events: auto;
+
+  --dd-leaderboard-row-height: 26px;
+  --dd-leaderboard-row-font: 13px;
+  --dd-leaderboard-max-rows: 7;
+  --dd-leaderboard-title-size: 16px;
+  --dd-logo-max-height: 40px;
+  --dd-footer-height: 40px;
+}
+
+#dd-roundend.is-tall {
+  --dd-leaderboard-row-height: 28px;
+  --dd-leaderboard-row-font: 14px;
+  --dd-leaderboard-max-rows: 11;
+  --dd-leaderboard-title-size: 18px;
+  --dd-logo-max-height: 48px;
+  --dd-footer-height: 44px;
 }
 
 #dd-roundend.is-show {
@@ -327,13 +348,30 @@ body {
   -webkit-backdrop-filter: blur(12px);
 }
 
+#dd-roundend .dd-roundend-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+#dd-roundend .dd-roundend-logo {
+  max-width: 45%;
+  max-height: var(--dd-logo-max-height);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  display: block;
+}
+
 #dd-roundend .dd-roundend-title {
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
   font-weight: 850;
-  font-size: 16px;
+  font-size: var(--dd-leaderboard-title-size);
   letter-spacing: 0.3px;
   color: rgba(255, 255, 255, 0.92);
-  margin-bottom: 10px;
+  text-align: center;
 }
 
 #dd-roundend .dd-roundend-score {
@@ -345,31 +383,85 @@ body {
   margin-bottom: 12px;
 }
 
-#dd-roundend .dd-roundend-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px 10px;
-  margin-bottom: 12px;
+#dd-roundend .dd-roundend-leaderboard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
 }
 
-#dd-roundend .dd-roundend-item {
+#dd-roundend .dd-roundend-leaderboard-body {
   display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: calc(
+    var(--dd-leaderboard-row-height) * var(--dd-leaderboard-max-rows)
+  );
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+#dd-roundend .dd-roundend-row {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 10px;
 
-  padding: 8px 10px;
+  padding: 0 10px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.1);
 
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
   font-weight: 650;
-  font-size: 12px;
+  font-size: var(--dd-leaderboard-row-font);
+  height: var(--dd-leaderboard-row-height);
   letter-spacing: 0.2px;
   color: rgba(255, 255, 255, 0.85);
 }
 
-#dd-roundend .dd-roundend-footer {
+#dd-roundend .dd-roundend-row.is-empty {
+  justify-content: center;
+  font-style: italic;
+}
+
+#dd-roundend .dd-roundend-row-name {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#dd-roundend .dd-roundend-row-rank,
+#dd-roundend .dd-roundend-row-score {
+  min-width: 46px;
+  font-variant-numeric: tabular-nums;
+}
+
+#dd-roundend .dd-roundend-row-rank {
+  text-align: left;
+}
+
+#dd-roundend .dd-roundend-row-score {
+  text-align: right;
+}
+
+#dd-roundend .dd-roundend-footerline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--dd-footer-height);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.2px;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 8px;
+}
+
+#dd-roundend .dd-roundend-actions {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
@@ -413,8 +505,8 @@ body {
     font-size: 18px;
   }
 
-  #dd-roundend .dd-roundend-grid {
-    grid-template-columns: 1fr;
+  #dd-roundend .dd-roundend-card {
+    padding: 14px 14px 12px 14px;
   }
 }
 canvas {
