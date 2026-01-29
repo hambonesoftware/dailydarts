@@ -98,6 +98,33 @@ export function createActionManager(scene, camera, controls, fireworks, confetti
       impactLogoEnabled = !!enabled;
     },
 
+    showLogo: (opts) => {
+      if (logo && typeof logo.show === "function") {
+        logo.show(opts);
+      }
+    },
+
+    setLogoMode: (mode) => {
+      if (logo && typeof logo.setMode === "function") {
+        logo.setMode(mode);
+      }
+    },
+
+    setLeaderboardData: (data) => {
+      if (logo && typeof logo.setLeaderboardData === "function") {
+        logo.setLeaderboardData(data);
+      }
+    },
+
+    showLeaderboard: (data) => {
+      if (logo && typeof logo.setLeaderboardData === "function") {
+        logo.setLeaderboardData(data);
+      }
+      if (logo && typeof logo.show === "function") {
+        logo.show({ holdForever: true });
+      }
+    },
+
     setOnDartLanded: (fn) => {
       onDartLanded = typeof fn === "function" ? fn : null;
     },
