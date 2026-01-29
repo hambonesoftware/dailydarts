@@ -13,15 +13,15 @@ export function createDailyDartsLogo(scene) {
   const CANVAS_W = 1400;
   const CANVAS_H = 800;
 
-  const BOARD_W = 6.2;   // world units
+  const BOARD_W = 6.2; // world units
   const BOARD_H = 3.6;
 
   const FRAME_THICK = 0.22; // frame depth
   const FRAME_FACE = 0.25;  // frame border width around board
 
-  const DIST_NEAR = 4.35;  // how close to camera at end of reveal
-  const DIST_FAR = 4.8;    // where it starts from
-  const UP_OFFSET = -0.15; // move sign slightly down in view
+  const DIST_NEAR = 4.85; // how close to camera at end of reveal
+  const DIST_FAR = 5.35; // where it starts from
+  const UP_OFFSET = -0.05; // move sign slightly down in view
   const RIGHT_OFFSET = 0.0;
 
   const SHOW_DURATION = 1.10;
@@ -70,7 +70,7 @@ export function createDailyDartsLogo(scene) {
   // -----------------------------
   // Chalkboard CanvasTexture
   // -----------------------------
-  function makeChalkboardTexture() {
+  function createChalkboardTexture() {
     const canvas = document.createElement("canvas");
     canvas.width = CANVAS_W;
     canvas.height = CANVAS_H;
@@ -82,46 +82,54 @@ export function createDailyDartsLogo(scene) {
       fallback.width = 8;
       fallback.height = 8;
       const c2 = fallback.getContext("2d");
-      c2.fillStyle = "#1a2723";
-      c2.fillRect(0, 0, 8, 8);
+      if (c2) {
+        c2.fillStyle = "#1a2723";
+        c2.fillRect(0, 0, 8, 8);
+      }
       const tex = new THREE.CanvasTexture(fallback);
       tex.colorSpace = THREE.SRGBColorSpace;
-      return tex;
+      return {
+        texture: tex,
+        drawLogo: () => {},
+        drawLeaderboard: () => {},
+      };
     }
 
-    // Base board color
-    ctx.fillStyle = "#1b2a26";
-    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    function drawBackground() {
+      // Base board color
+      ctx.fillStyle = "#1b2a26";
+      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
-    // Subtle vignette
-    const grad = ctx.createRadialGradient(
-      CANVAS_W * 0.5,
-      CANVAS_H * 0.5,
-      CANVAS_H * 0.1,
-      CANVAS_W * 0.5,
-      CANVAS_H * 0.5,
-      CANVAS_H * 0.75
-    );
-    grad.addColorStop(0, "rgba(0,0,0,0.00)");
-    grad.addColorStop(1, "rgba(0,0,0,0.45)");
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+      // Subtle vignette
+      const grad = ctx.createRadialGradient(
+        CANVAS_W * 0.5,
+        CANVAS_H * 0.5,
+        CANVAS_H * 0.1,
+        CANVAS_W * 0.5,
+        CANVAS_H * 0.5,
+        CANVAS_H * 0.75
+      );
+      grad.addColorStop(0, "rgba(0,0,0,0.00)");
+      grad.addColorStop(1, "rgba(0,0,0,0.45)");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
-    // Chalk dust noise
-    const img = ctx.getImageData(0, 0, CANVAS_W, CANVAS_H);
-    const data = img.data;
-    for (let i = 0; i < data.length; i += 4) {
-      const n = Math.random();
-      const dust = n < 0.06 ? randBetween(8, 24) : 0; // sparse dust
-      data[i + 0] = Math.min(255, data[i + 0] + dust);
-      data[i + 1] = Math.min(255, data[i + 1] + dust);
-      data[i + 2] = Math.min(255, data[i + 2] + dust);
-      data[i + 3] = 255;
+      // Chalk dust noise
+      const img = ctx.getImageData(0, 0, CANVAS_W, CANVAS_H);
+      const data = img.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const n = Math.random();
+        const dust = n < 0.06 ? randBetween(8, 24) : 0; // sparse dust
+        data[i + 0] = Math.min(255, data[i + 0] + dust);
+        data[i + 1] = Math.min(255, data[i + 1] + dust);
+        data[i + 2] = Math.min(255, data[i + 2] + dust);
+        data[i + 3] = 255;
+      }
+      ctx.putImageData(img, 0, 0);
     }
-    ctx.putImageData(img, 0, 0);
 
     // Chalk stroke helper (draw multiple times with jitter)
-    function chalkStrokeText(text, x, y, font, align = "center", sizeJitter = 0) {
+    function chalkStrokeText(text, x, y, font, align = "center") {
       ctx.save();
       ctx.font = font;
       ctx.textAlign = align;
@@ -151,6 +159,23 @@ export function createDailyDartsLogo(scene) {
         const py = y + randBetween(-40, 40);
         ctx.fillStyle = `rgba(255,255,255,${randBetween(0.03, 0.09)})`;
         ctx.fillRect(px, py, randBetween(1, 2), randBetween(1, 2));
+      }
+
+      ctx.restore();
+    }
+
+    function chalkTextLine(text, x, y, font, align = "left") {
+      ctx.save();
+      ctx.font = font;
+      ctx.textAlign = align;
+      ctx.textBaseline = "middle";
+
+      for (let i = 0; i < 3; i++) {
+        const jx = randBetween(-1.0, 1.0);
+        const jy = randBetween(-1.0, 1.0);
+        const a = randBetween(0.6, 0.9);
+        ctx.fillStyle = `rgba(255,255,255,${a})`;
+        ctx.fillText(text, x + jx, y + jy);
       }
 
       ctx.restore();
@@ -210,54 +235,123 @@ export function createDailyDartsLogo(scene) {
       ctx.fillStyle = "rgba(255,255,255,0.35)";
       for (let i = 0; i < 4; i++) {
         ctx.beginPath();
-        ctx.arc(cx + randBetween(-1.5, 1.5), cy + randBetween(-1.5, 1.5), radius * 0.05, 0, Math.PI * 2);
+        ctx.arc(
+          cx + randBetween(-1.5, 1.5),
+          cy + randBetween(-1.5, 1.5),
+          radius * 0.05,
+          0,
+          Math.PI * 2
+        );
         ctx.fill();
       }
 
       ctx.restore();
     }
 
-    // Title
-    chalkStrokeText(
-      "DAILY DARTS",
-      CANVAS_W * 0.5,
-      CANVAS_H * 0.30,
-      "900 120px Arial",
-      "center"
-    );
+    function drawLogoBoard() {
+      drawBackground();
 
-    // Subtitle (smaller, softer)
-    chalkStrokeText(
-      "Hit the bull. Chase the streak.",
-      CANVAS_W * 0.5,
-      CANVAS_H * 0.42,
-      "700 48px Arial",
-      "center"
-    );
+      // Title
+      chalkStrokeText(
+        "DAILY DARTS",
+        CANVAS_W * 0.5,
+        CANVAS_H * 0.30,
+        "900 120px Arial",
+        "center"
+      );
 
-    // Dartboard sketch
-    chalkDartboard(CANVAS_W * 0.5, CANVAS_H * 0.70, CANVAS_H * 0.20);
+      // Subtitle (smaller, softer)
+      chalkStrokeText(
+        "Hit the bull. Chase the streak.",
+        CANVAS_W * 0.5,
+        CANVAS_H * 0.42,
+        "700 48px Arial",
+        "center"
+      );
 
-    // Bottom scribble line
-    ctx.save();
-    ctx.strokeStyle = "rgba(255,255,255,0.16)";
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    const y = CANVAS_H * 0.92;
-    ctx.moveTo(CANVAS_W * 0.18, y);
-    for (let i = 0; i <= 16; i++) {
-      const x = CANVAS_W * 0.18 + (CANVAS_W * 0.64 * i) / 16;
-      ctx.lineTo(x, y + Math.sin(i * 0.7) * randBetween(-8, 8));
+      // Dartboard sketch
+      chalkDartboard(CANVAS_W * 0.5, CANVAS_H * 0.70, CANVAS_H * 0.20);
+
+      // Bottom scribble line
+      ctx.save();
+      ctx.strokeStyle = "rgba(255,255,255,0.16)";
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      const y = CANVAS_H * 0.92;
+      ctx.moveTo(CANVAS_W * 0.18, y);
+      for (let i = 0; i <= 16; i++) {
+        const x = CANVAS_W * 0.18 + (CANVAS_W * 0.64 * i) / 16;
+        ctx.lineTo(x, y + Math.sin(i * 0.7) * randBetween(-8, 8));
+      }
+      ctx.stroke();
+      ctx.restore();
     }
-    ctx.stroke();
-    ctx.restore();
+
+    function drawLeaderboardBoard(data) {
+      drawBackground();
+
+      chalkStrokeText(
+        "LEADERBOARD",
+        CANVAS_W * 0.5,
+        CANVAS_H * 0.16,
+        "900 96px Arial",
+        "center"
+      );
+
+      const scoreText =
+        typeof data?.score === "number" ? `Score: ${data.score}` : "Score: —";
+      const rankText =
+        typeof data?.rank === "number" ? `Rank: #${data.rank}` : "Rank: —";
+
+      chalkTextLine(scoreText, CANVAS_W * 0.18, CANVAS_H * 0.30, "700 44px Arial", "left");
+      chalkTextLine(rankText, CANVAS_W * 0.82, CANVAS_H * 0.30, "700 44px Arial", "right");
+
+      chalkTextLine("Top Throws", CANVAS_W * 0.5, CANVAS_H * 0.40, "700 38px Arial", "center");
+
+      const listStartY = CANVAS_H * 0.50;
+      const lineHeight = 52;
+      const entries = Array.isArray(data?.top) ? data.top : [];
+
+      for (let i = 0; i < 5; i++) {
+        const entry = entries[i];
+        const y = listStartY + i * lineHeight;
+        const rankLabel = entry?.rank ? `#${entry.rank}` : `#${i + 1}`;
+        const name = entry?.metadata?.username || entry?.userId || "anonymous";
+        const score = typeof entry?.score === "number" ? entry.score : 0;
+        chalkTextLine(rankLabel, CANVAS_W * 0.2, y, "600 36px Arial", "left");
+        chalkTextLine(name, CANVAS_W * 0.5, y, "600 36px Arial", "center");
+        chalkTextLine(`${score}`, CANVAS_W * 0.82, y, "700 36px Arial", "right");
+      }
+
+      if (data?.username) {
+        chalkTextLine(
+          `Good darts, ${data.username}!`,
+          CANVAS_W * 0.5,
+          CANVAS_H * 0.88,
+          "600 34px Arial",
+          "center"
+        );
+      }
+    }
 
     const tex = new THREE.CanvasTexture(canvas);
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.wrapS = THREE.ClampToEdgeWrapping;
     tex.wrapT = THREE.ClampToEdgeWrapping;
+    drawLogoBoard();
     tex.needsUpdate = true;
-    return tex;
+
+    return {
+      texture: tex,
+      drawLogo: () => {
+        drawLogoBoard();
+        tex.needsUpdate = true;
+      },
+      drawLeaderboard: (data) => {
+        drawLeaderboardBoard(data);
+        tex.needsUpdate = true;
+      },
+    };
   }
 
   function makeWoodTexture() {
@@ -314,7 +408,8 @@ export function createDailyDartsLogo(scene) {
     return tex;
   }
 
-  const chalkTex = makeChalkboardTexture();
+  const chalkboard = createChalkboardTexture();
+  const chalkTex = chalkboard.texture;
   const woodTex = makeWoodTexture();
 
   // -----------------------------
@@ -414,6 +509,19 @@ export function createDailyDartsLogo(scene) {
   // Materials list for fading
   const fadeMats = [boardMat, woodMat, backMat];
 
+  const boardState = {
+    mode: "logo",
+    leaderboardData: null,
+  };
+
+  function renderChalkboard() {
+    if (boardState.mode === "leaderboard") {
+      chalkboard.drawLeaderboard(boardState.leaderboardData);
+      return;
+    }
+    chalkboard.drawLogo();
+  }
+
   // -----------------------------
   // Animation state machine
   // -----------------------------
@@ -458,6 +566,15 @@ export function createDailyDartsLogo(scene) {
   // Public API
   return {
     group,
+    setMode: (mode = "logo") => {
+      boardState.mode = mode === "leaderboard" ? "leaderboard" : "logo";
+      renderChalkboard();
+    },
+    setLeaderboardData: (data) => {
+      boardState.mode = "leaderboard";
+      boardState.leaderboardData = data ?? null;
+      renderChalkboard();
+    },
 
     show: (opts = {}) => {
       state.holdForever = !!(opts && opts.holdForever);
@@ -497,13 +614,13 @@ export function createDailyDartsLogo(scene) {
         state.t = tt;
 
         const eased = easeOutBack(tt);
-        state.scale = 0.55 + 0.55 * eased; // 0.55 -> 1.10 overshoot
+        state.scale = 0.45 + 0.45 * eased; // 0.45 -> 0.90 overshoot
         state.opacity = easeOutCubic(tt);
 
-        // After overshoot, normalize back to 1.0 near the end
+        // After overshoot, normalize back to 0.85 near the end
         if (tt > 0.85) {
           const n = (tt - 0.85) / 0.15;
-          state.scale = state.scale + (1.0 - state.scale) * easeInOutCubic(n);
+          state.scale = state.scale + (0.85 - state.scale) * easeInOutCubic(n);
         }
 
         setOpacity(state.opacity);
@@ -511,14 +628,14 @@ export function createDailyDartsLogo(scene) {
         if (tt >= 1) {
           state.mode = "holding";
           state.hold = 0;
-          state.scale = 1.0;
+          state.scale = 0.85;
           state.opacity = 1.0;
           setOpacity(1.0);
         }
       } else if (state.mode === "holding") {
         state.hold += delta;
         state.t = 1;
-        state.scale = 1.0;
+        state.scale = 0.85;
         state.opacity = 1.0;
         setOpacity(1.0);
 
@@ -531,7 +648,7 @@ export function createDailyDartsLogo(scene) {
         state.t = tt;
 
         const eased = easeInOutCubic(tt);
-        state.scale = 0.78 + 0.22 * eased; // 0.78 -> 1.0 while fading
+        state.scale = 0.65 + 0.20 * eased; // 0.65 -> 0.85 while fading
         state.opacity = eased;
 
         setOpacity(state.opacity);

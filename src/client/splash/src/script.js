@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { context } from "@devvit/web/client";
 
 import { createDartboard } from "./board.js";
 import { createDart } from "./dart.js";
@@ -36,6 +37,7 @@ const AIM_DISC_Z = DART_TARGET_OFFSET + 0.06;
 
 // Round settings
 const MAX_DARTS_PER_ROUND = 10;
+const LEADERBOARD_LIMIT = 5;
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(
@@ -105,6 +107,10 @@ function resetRound() {
   throwHistory = [];
   roundActive = true;
 
+  if (typeof actionManager.setLogoMode === "function") {
+    actionManager.setLogoMode("logo");
+  }
+
   roundHud.setVisible(true);
   roundHud.setState({
     dartsThrown,
@@ -123,15 +129,89 @@ function endRound() {
   }
 
   roundHud.showToast("Round complete!");
-  roundHud.showRoundEnd({
-    totalScore,
-    throws: throwHistory.map((t) => ({ label: t.label, points: t.points })),
-  });
+
+  void finalizeRoundLeaderboard();
 }
 
 roundHud.setOnPlayAgain(() => {
   resetRound();
 });
+
+function getPlayerIdentity() {
+  const username =
+    (context && typeof context.username === "string" && context.username) ||
+    "anonymous";
+  const userId =
+    (context && typeof context.userId === "string" && context.userId) || username;
+  return { username, userId };
+}
+
+async function submitRoundScore(score) {
+  const { userId, username } = getPlayerIdentity();
+
+  const response = await fetch("/api/leaderboard/submit", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      userId,
+      score,
+      limit: LEADERBOARD_LIMIT,
+      metadata: { username },
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Leaderboard submit failed: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+async function fetchLeaderboard() {
+  const { userId } = getPlayerIdentity();
+
+  const response = await fetch("/api/leaderboard/fetch", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      userId,
+      limit: LEADERBOARD_LIMIT,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Leaderboard fetch failed: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+async function finalizeRoundLeaderboard() {
+  try {
+    await submitRoundScore(totalScore);
+  } catch (error) {
+    console.warn("Failed to submit leaderboard score", error);
+  }
+
+  try {
+    const leaderboard = await fetchLeaderboard();
+    if (leaderboard && leaderboard.type === "leaderboard-fetch") {
+      const { username } = getPlayerIdentity();
+      const payload = {
+        score: totalScore,
+        rank: leaderboard.callerRank,
+        top: leaderboard.top,
+        username,
+      };
+
+      if (typeof actionManager.showLeaderboard === "function") {
+        actionManager.showLeaderboard(payload);
+      }
+    }
+  } catch (error) {
+    console.warn("Failed to fetch leaderboard", error);
+  }
+}
 
 // -----------------------------
 // DARTBOARD + AIM DISC
