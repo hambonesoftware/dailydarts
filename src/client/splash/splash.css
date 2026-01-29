@@ -19,6 +19,9 @@ body {
 
 /* The new splash.html uses dd-root instead of the starter's .app layout. */
 .dd-root {
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
   width: 100%;
   height: 100%;
   margin: 0;
@@ -27,11 +30,19 @@ body {
   background: #000000;
 }
 
-/* Make sure the Three.js mount can fill the view even before JS runs. */
+/* Centered stage container for the game mount. */
+#stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Make sure the Three.js mount can fill the stage even before JS runs. */
 #app {
-  position: fixed;
-  left: 0;
-  top: 0;
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
 }
