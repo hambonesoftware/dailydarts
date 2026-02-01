@@ -36,46 +36,26 @@ function createLoadingOverlay() {
   overlay.id = "game-loading-overlay";
   overlay.style.position = "fixed";
   overlay.style.inset = "0";
-  overlay.style.display = "flex";
-  overlay.style.alignItems = "center";
-  overlay.style.justifyContent = "center";
-  overlay.style.background = "rgba(7, 8, 12, 0.92)";
+  overlay.style.background = "url('/chalkboard.jpg') center/cover no-repeat";
+  overlay.style.overflow = "hidden";
   overlay.style.color = "#fff";
   overlay.style.zIndex = "99999";
   overlay.style.fontFamily = "system-ui, sans-serif";
   overlay.style.transition = "opacity 250ms ease";
 
-  const content = document.createElement("div");
-  content.style.display = "flex";
-  content.style.flexDirection = "column";
-  content.style.alignItems = "center";
-  content.style.gap = "12px";
-
-  const spinner = document.createElement("div");
-  spinner.style.width = "48px";
-  spinner.style.height = "48px";
-  spinner.style.borderRadius = "50%";
-  spinner.style.border = "4px solid rgba(255, 255, 255, 0.35)";
-  spinner.style.borderTopColor = "#fff";
-  spinner.style.animation = "dd-spin 1s linear infinite";
+  const dimmer = document.createElement("div");
+  dimmer.style.position = "absolute";
+  dimmer.style.inset = "0";
+  dimmer.style.background = "rgba(7, 8, 12, 0.55)";
+  dimmer.style.pointerEvents = "none";
 
   const text = document.createElement("div");
-  text.style.fontSize = "16px";
-  text.style.letterSpacing = "0.02em";
+  text.style.position = "absolute";
+  text.style.opacity = "0";
+  text.style.pointerEvents = "none";
   text.textContent = "Loading assets…";
 
-  content.appendChild(spinner);
-  content.appendChild(text);
-  overlay.appendChild(content);
-
-  const styleTag = document.createElement("style");
-  styleTag.textContent = `
-    @keyframes dd-spin {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
-  `;
-  document.head.appendChild(styleTag);
+  overlay.appendChild(dimmer);
 
   document.body.appendChild(overlay);
 
@@ -84,7 +64,6 @@ function createLoadingOverlay() {
     overlay.style.pointerEvents = "none";
     window.setTimeout(() => {
       overlay.remove();
-      styleTag.remove();
     }, 260);
   };
 
