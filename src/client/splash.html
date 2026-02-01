@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, width=device-width, height=device-height, user-scalable=0"
+    />
+    <link rel="stylesheet" type="text/css" href="splash/splash.css" />
+    <title>Daily Darts</title>
+  </head>
+
+  <body class="app">
+    <!-- Canvas background -->
+    <canvas id="splash-canvas"></canvas>
+
+    <!-- Minimal overlay UI (keeps Start clickable) -->
+    <div class="overlay">
+      <!-- Optional: keep this for accessibility / fallback (we can blank it in TS) -->
+      <h1 class="title" id="title"></h1>
+
+      <div class="actions">
+        <button class="start-button" id="start-button">Start</button>
+      </div>
+
+      <footer class="footer">
+        <div class="docs-link" tabindex="0" id="docs-link">Docs</div>
+        <span class="divider">|</span>
+        <div class="docs-link" tabindex="0" id="playtest-link">r/Devvit</div>
+        <span class="divider">|</span>
+        <div class="docs-link" tabindex="0" id="discord-link">Discord</div>
+      </footer>
+    </div>
+
+    <script type="module" src="splash/splash.ts"></script>
+  </body>
+</html>

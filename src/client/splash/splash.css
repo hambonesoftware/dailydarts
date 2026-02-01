@@ -1,0 +1,220 @@
+:root {
+  --chalk: rgba(255, 255, 255, 0.95);
+  --chalk-dim: rgba(255, 255, 255, 0.72);
+  --frame: rgba(255, 255, 255, 0.22);
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body.app {
+  min-height: 100vh;
+  overflow: hidden;
+  background: #070809;
+  font-family: ui-rounded, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+}
+
+/* Canvas background */
+#splash-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Overlay exists only for interactive elements */
+.overlay {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  pointer-events: none; /* canvas is the visual layer; overlay only for controls */
+}
+
+/* Keep DOM title hidden (we draw title on canvas) */
+.title {
+  margin: 0;
+  padding: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+/* --- Bottom-anchored controls (mobile-safe) --- */
+.actions {
+  position: absolute;
+  left: 0;
+  right: 0;
+
+  /* Keep button off the bottom bar and off the footer */
+  bottom: calc(78px + env(safe-area-inset-bottom, 0px));
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  pointer-events: auto;
+}
+
+/* Chalk-style button */
+.start-button {
+  appearance: none;
+  border: 2px solid var(--frame);
+  background: rgba(0, 0, 0, 0.18);
+  color: var(--chalk);
+  padding: 14px 36px;
+  border-radius: 999px;
+
+  font-family: ui-rounded, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+  font-weight: 900;
+  font-size: 18px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+
+  cursor: pointer;
+
+  text-shadow:
+    0 2px 0 rgba(0, 0, 0, 0.55),
+    0 0 10px rgba(255, 255, 255, 0.18);
+
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.08) inset,
+    0 0 18px rgba(255, 255, 255, 0.06),
+    0 14px 30px rgba(0, 0, 0, 0.35);
+
+  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+
+.start-button:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.30);
+}
+
+.start-button:active {
+  transform: translateY(0px);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* Footer links pinned to very bottom */
+.footer {
+  position: absolute;
+  left: 0;
+  right: 0;
+
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+
+  color: var(--chalk-dim);
+  pointer-events: auto;
+
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.55);
+}
+
+.docs-link {
+  cursor: pointer;
+  user-select: none;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.docs-link:hover {
+  color: var(--chalk);
+}
+
+.divider {
+  opacity: 0.5;
+}
+
+/* If the screen is short, hide footer to reduce clutter */
+@media (max-height: 680px) {
+  .footer {
+    display: none;
+  }
+  .actions {
+    bottom: calc(22px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+
+#start-button {
+  appearance: none;
+  border: 2px solid rgba(255, 255, 255, 0.32);
+  background: rgba(0, 0, 0, 0.18);
+  color: rgba(255, 255, 255, 0.96);
+
+  border-radius: 999px;
+  padding: 14px 36px;
+
+  font-family: ui-rounded, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+  font-weight: 900;
+  font-size: 18px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+
+  text-shadow:
+    0 2px 0 rgba(0, 0, 0, 0.55),
+    0 0 10px rgba(255, 255, 255, 0.14);
+
+  box-shadow:
+    0 0 0 2px rgba(0, 0, 0, 0.35) inset,
+    0 0 18px rgba(255, 255, 255, 0.05);
+
+  /* Breathing */
+  transform-origin: center;
+  animation: ddBreath 2.8s ease-in-out infinite;
+  will-change: transform, box-shadow, background;
+}
+
+#start-button:hover {
+  animation-play-state: paused; /* don’t fight the user */
+  background: rgba(255, 255, 255, 0.07);
+}
+
+#start-button:active {
+  animation-play-state: paused;
+  transform: scale(0.99);
+}
+
+@keyframes ddBreath {
+  0% {
+    transform: scale(1);
+    background: rgba(0, 0, 0, 0.18);
+    box-shadow:
+      0 0 0 2px rgba(0, 0, 0, 0.35) inset,
+      0 0 16px rgba(255, 255, 255, 0.05);
+  }
+  50% {
+    transform: scale(1.045);
+    background: rgba(255, 255, 255, 0.06);
+    box-shadow:
+      0 0 0 2px rgba(0, 0, 0, 0.35) inset,
+      0 0 34px rgba(255, 255, 255, 0.10);
+  }
+  100% {
+    transform: scale(1);
+    background: rgba(0, 0, 0, 0.18);
+    box-shadow:
+      0 0 0 2px rgba(0, 0, 0, 0.35) inset,
+      0 0 16px rgba(255, 255, 255, 0.05);
+  }
+}
+
+/* Respect accessibility preferences */
+@media (prefers-reduced-motion: reduce) {
+  #start-button {
+    animation: none;
+  }
+}
