@@ -316,7 +316,11 @@ export function createDailyDartsLogo(scene) {
         const entry = entries[i];
         const y = listStartY + i * lineHeight;
         const rankLabel = entry?.rank ? `#${entry.rank}` : `#${i + 1}`;
-        const name = entry?.metadata?.username || entry?.userId || "anonymous";
+        const name =
+          entry?.member ||
+          entry?.metadata?.username ||
+          entry?.userId ||
+          "anonymous";
         const score = typeof entry?.score === "number" ? entry.score : 0;
         chalkTextLine(rankLabel, CANVAS_W * 0.2, y, "600 36px Arial", "left");
         chalkTextLine(name, CANVAS_W * 0.5, y, "600 36px Arial", "center");

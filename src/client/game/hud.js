@@ -610,7 +610,10 @@ export function createRoundHud(options = {}) {
         const nameEl = document.createElement("div");
         nameEl.className = "dd-roundend-row-name";
         nameEl.textContent =
-          entry?.metadata?.username || entry?.userId || "anonymous";
+          entry?.member ||
+          entry?.metadata?.username ||
+          entry?.userId ||
+          "anonymous";
 
         const scoreEl = document.createElement("div");
         scoreEl.className = "dd-roundend-row-score";
