@@ -49,7 +49,7 @@ export function createActionManager(
     startCamPos: new THREE.Vector3(-3.69, 6.91, -5.0),
     actionCamPos: new THREE.Vector3(-10.0, 7.2, -3.5),
     startFov: 75,
-    actionFov: 55,
+    actionFov: 65,
     resetDelay: RESET_DELAY,
     resetDuration: RESET_DURATION,
     shakeDecay: 0.92,
@@ -66,7 +66,7 @@ export function createActionManager(
   // Easing (kept local)
   const Easing = {
     easeInOutCubic: (t) =>
-      t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2,
+      t * t * t ,
   };
 
   function bezierPointInto(out, p0, p1, p2, p3, t) {
