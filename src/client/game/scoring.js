@@ -268,8 +268,16 @@ export function formatHitForHud(scoreResult) {
   const pts = Number(scoreResult.points) || 0;
 
   if (label === "MISS") return "MISS (+0)";
-  if (label === "SBULL") return `SBULL (+${pts})`;
-  if (label === "DBULL") return `DBULL (+${pts})`;
+  if (label === "SBULL") return `Single Bull (+${pts})`;
+  if (label === "DBULL") return `Double Bull (+${pts})`;
+
+  const prefixMatch = label.match(/^([SDT])(\\d+)$/);
+  if (prefixMatch) {
+    const prefixMap = { S: "Single", D: "Double", T: "Triple" };
+    const [, prefix, value] = prefixMatch;
+    const prefixWord = prefixMap[prefix] || prefix;
+    return `${prefixWord} ${value} (+${pts})`;
+  }
 
   return `${label} (+${pts})`;
 }

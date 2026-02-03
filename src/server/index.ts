@@ -253,6 +253,7 @@ router.post("/api/leaderboard/submit", async (req: Request, res): Promise<void> 
   const now = Date.now();
   let accepted = false;
   let bestScore = prevBest;
+  let storeChanged = false;
 
   // Only accept if score improves
   if (!existing || score > prevBest) {
@@ -263,6 +264,22 @@ router.post("/api/leaderboard/submit", async (req: Request, res): Promise<void> 
     };
     accepted = true;
     bestScore = score;
+    storeChanged = true;
+  } else if (
+    existing &&
+    typeof displayName === "string" &&
+    displayName.trim() &&
+    displayName !== existing.member
+  ) {
+    store.users[userId] = {
+      ...existing,
+      member: displayName,
+      updatedAt: now,
+    };
+    storeChanged = true;
+  }
+
+  if (storeChanged) {
     await writeLeaderboardStore(postId, store);
   }
 
