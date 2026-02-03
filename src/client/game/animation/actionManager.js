@@ -29,6 +29,7 @@ export function createActionManager(
 
   // Logo controller
   const logo = createDailyDartsLogo(scene);
+  let logoMode = "logo";
 
   // Start / intro state
   let gameStarted = false;
@@ -114,9 +115,26 @@ export function createActionManager(
     },
 
     setLogoMode: (mode) => {
+      const normalizedMode =
+        mode === "leaderboard" ? "leaderboard" : mode === "share" ? "share" : "logo";
+      logoMode = normalizedMode;
       if (logo && typeof logo.setMode === "function") {
-        logo.setMode(mode);
+        logo.setMode(normalizedMode);
       }
+    },
+
+    getShareCardDataUrl: (data) => {
+      if (!logo || typeof logo.drawShareCard !== "function") return "";
+      const prevMode = logoMode;
+      logo.drawShareCard(data);
+      const url = typeof logo.toDataURL === "function" ? logo.toDataURL("image/png") : "";
+      if (prevMode !== "share") {
+        logoMode = prevMode;
+        if (typeof logo.setMode === "function") {
+          logo.setMode(prevMode);
+        }
+      }
+      return url;
     },
 
  
