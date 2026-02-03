@@ -201,12 +201,14 @@ export function mountGame(
   let roundActive = false;
   let dartsThrown = 0;
   let totalScore = 0;
+  let dartScores: number[] = [];
   let boardReadyForGameplay = false;
   let roundEndShareImageUrl = "";
 
   function resetRound() {
     dartsThrown = 0;
     totalScore = 0;
+    dartScores = [];
     roundActive = true;
     roundEndShareImageUrl = "";
 
@@ -297,6 +299,7 @@ export function mountGame(
     const { username } = getPlayerIdentity();
     return {
       score,
+      darts: dartScores.slice(0, MAX_DARTS_PER_ROUND),
       username,
       date: new Date().toISOString(),
     };
@@ -484,6 +487,9 @@ export function mountGame(
 
     dartsThrown += 1;
     totalScore += pts;
+    if (dartScores.length < MAX_DARTS_PER_ROUND) {
+      dartScores.push(pts);
+    }
 
     const lastText = formatHitForHud(scoreResult);
 

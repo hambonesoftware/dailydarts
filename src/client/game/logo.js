@@ -430,14 +430,65 @@ export function createDailyDartsLogo(scene) {
         "center"
       );
 
-      chalkDartboard(CANVAS_W * 0.27, CANVAS_H * 0.76, CANVAS_H * 0.16);
-      chalkDart(CANVAS_W * 0.62, CANVAS_H * 0.78, CANVAS_H * 0.20, -0.35);
+      const gridLeft = CANVAS_W * 0.12;
+      const gridRight = CANVAS_W * 0.88;
+      const gridTop = CANVAS_H * 0.70;
+      const gridBottom = CANVAS_H * 0.88;
+      const columns = 11;
+      const cellW = (gridRight - gridLeft) / columns;
+      const rowH = (gridBottom - gridTop) / 2;
+      const headerY = gridTop + rowH * 0.38;
+      const valueY = gridTop + rowH * 1.28;
+
+      ctx.save();
+      ctx.strokeStyle = "rgba(255,255,255,0.25)";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(gridLeft, gridTop);
+      ctx.lineTo(gridRight, gridTop);
+      ctx.moveTo(gridLeft, gridTop + rowH);
+      ctx.lineTo(gridRight, gridTop + rowH);
+      ctx.moveTo(gridLeft, gridBottom);
+      ctx.lineTo(gridRight, gridBottom);
+      for (let i = 0; i <= columns; i++) {
+        const x = gridLeft + cellW * i;
+        ctx.moveTo(x, gridTop);
+        ctx.lineTo(x, gridBottom);
+      }
+      ctx.stroke();
+      ctx.restore();
+
+      for (let i = 0; i < columns - 1; i++) {
+        const x = gridLeft + cellW * i + cellW * 0.5;
+        chalkTextLine(`${i + 1}`, x, headerY, "700 28px Arial", "center");
+      }
+      chalkTextLine("T", gridLeft + cellW * 10 + cellW * 0.5, headerY, "700 28px Arial", "center");
+
+      const dartScores = Array.isArray(data?.darts) ? data.darts : [];
+      for (let i = 0; i < columns - 1; i++) {
+        const value =
+          typeof dartScores[i] === "number" ? `${dartScores[i]}` : "—";
+        const x = gridLeft + cellW * i + cellW * 0.5;
+        chalkTextLine(value, x, valueY, "700 30px Arial", "center");
+      }
+      const totalValue =
+        typeof data?.score === "number" ? `${data.score}` : "—";
+      chalkTextLine(
+        totalValue,
+        gridLeft + cellW * 10 + cellW * 0.5,
+        valueY,
+        "800 32px Arial",
+        "center"
+      );
+
+      chalkDartboard(CANVAS_W * 0.22, CANVAS_H * 0.66, CANVAS_H * 0.14);
+      chalkDart(CANVAS_W * 0.58, CANVAS_H * 0.68, CANVAS_H * 0.17, -0.35);
 
       ctx.save();
       ctx.strokeStyle = "rgba(255,255,255,0.16)";
       ctx.lineWidth = 4;
       ctx.beginPath();
-      const y = CANVAS_H * 0.90;
+      const y = CANVAS_H * 0.92;
       ctx.moveTo(CANVAS_W * 0.15, y);
       for (let i = 0; i <= 18; i++) {
         const x = CANVAS_W * 0.15 + (CANVAS_W * 0.70 * i) / 18;
