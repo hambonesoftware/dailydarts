@@ -75,7 +75,7 @@ export function createDailyDartsLogo(scene) {
     canvas.width = CANVAS_W;
     canvas.height = CANVAS_H;
 
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) {
       // Fallback: plain dark texture
       const fallback = document.createElement("canvas");
