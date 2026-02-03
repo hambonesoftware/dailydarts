@@ -2,7 +2,7 @@ import * as THREE from "three";
 
 export const GLB_URL = "assets/bar_diorama.glb";
 const FONT_URL = "/fonts/helvetiker_bold.typeface.json";
-const ROUND_END_LOGO_URL = "assets/default-icon.png";
+const ROUND_END_LOGO_URL = "/assets/default-icon.png";
 
 export type PreloadProgress = {
   loaded: number;

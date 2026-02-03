@@ -1,8 +1,27 @@
+import { copyFile, mkdir } from 'node:fs/promises';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
+
+const currentDir = dirname(fileURLToPath(import.meta.url));
+
+function copyDefaultIcon() {
+  return {
+    name: 'copy-default-icon',
+    apply: 'build',
+    async writeBundle(options: { dir?: string }) {
+      const outDir = options.dir ?? resolve(currentDir, '../../dist/client');
+      const source = resolve(currentDir, '../../assets/default-icon.png');
+      const destination = resolve(outDir, 'assets/default-icon.png');
+      await mkdir(dirname(destination), { recursive: true });
+      await copyFile(source, destination);
+    },
+  };
+}
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [],
+  plugins: [copyDefaultIcon()],
   logLevel: 'warn',
   build: {
     outDir: '../../dist/client',
