@@ -49,3 +49,16 @@ export type LeaderboardSubmitResponse = {
   top: LeaderboardEntry[];
   callerRank: number | null;
 };
+
+export type CommentPostRequest = {
+  score: number;
+  username: string;
+  postId?: string;
+  imageDataUrl?: string;
+};
+
+export type CommentPostResponse = {
+  type: "comments-post";
+  ok: boolean;
+  message?: string;
+};
