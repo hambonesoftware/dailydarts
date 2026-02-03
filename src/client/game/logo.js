@@ -92,6 +92,10 @@ export function createDailyDartsLogo(scene) {
         texture: tex,
         drawLogo: () => {},
         drawLeaderboard: () => {},
+        drawShareCard: () => {},
+        toDataURL: (type, quality) => fallback.toDataURL(type, quality),
+        toBlob: (type, quality) =>
+          new Promise((resolve) => fallback.toBlob(resolve, type, quality)),
       };
     }
 
@@ -176,6 +180,45 @@ export function createDailyDartsLogo(scene) {
         const a = randBetween(0.6, 0.9);
         ctx.fillStyle = `rgba(255,255,255,${a})`;
         ctx.fillText(text, x + jx, y + jy);
+      }
+
+      ctx.restore();
+    }
+
+    function chalkDart(cx, cy, length, angle = -0.5) {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(angle);
+
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+
+      for (let i = 0; i < 4; i++) {
+        ctx.strokeStyle = `rgba(255,255,255,${randBetween(0.18, 0.32)})`;
+        ctx.lineWidth = randBetween(3, 5);
+        ctx.beginPath();
+        ctx.moveTo(randBetween(-2, 2), randBetween(-2, 2));
+        ctx.lineTo(length + randBetween(-2, 2), randBetween(-2, 2));
+        ctx.stroke();
+      }
+
+      for (let i = 0; i < 3; i++) {
+        ctx.fillStyle = `rgba(255,255,255,${randBetween(0.18, 0.30)})`;
+        ctx.beginPath();
+        ctx.moveTo(length + randBetween(-2, 2), randBetween(-2, 2));
+        ctx.lineTo(length + 28 + randBetween(-2, 2), 10 + randBetween(-2, 2));
+        ctx.lineTo(length + 28 + randBetween(-2, 2), -10 + randBetween(-2, 2));
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      for (let i = 0; i < 3; i++) {
+        ctx.strokeStyle = `rgba(255,255,255,${randBetween(0.16, 0.26)})`;
+        ctx.lineWidth = randBetween(2, 4);
+        ctx.beginPath();
+        ctx.moveTo(-26 + randBetween(-2, 2), randBetween(-6, 6));
+        ctx.lineTo(0 + randBetween(-2, 2), randBetween(-12, 12));
+        ctx.stroke();
       }
 
       ctx.restore();
@@ -338,6 +381,72 @@ export function createDailyDartsLogo(scene) {
       }
     }
 
+    function drawShareCardBoard(data) {
+      drawBackground();
+
+      chalkStrokeText(
+        "DAILY DARTS",
+        CANVAS_W * 0.5,
+        CANVAS_H * 0.12,
+        "900 86px Arial",
+        "center"
+      );
+
+      const scoreValue = typeof data?.score === "number" ? `${data.score}` : "—";
+      chalkTextLine("SCORE", CANVAS_W * 0.5, CANVAS_H * 0.25, "700 40px Arial", "center");
+      chalkStrokeText(
+        scoreValue,
+        CANVAS_W * 0.5,
+        CANVAS_H * 0.38,
+        "900 180px Arial",
+        "center"
+      );
+
+      const username = data?.username || data?.user || "anonymous";
+      chalkTextLine(
+        username,
+        CANVAS_W * 0.5,
+        CANVAS_H * 0.56,
+        "700 48px Arial",
+        "center"
+      );
+
+      let dateLabel = "Today";
+      if (data?.date) {
+        const date = new Date(data.date);
+        if (!Number.isNaN(date.valueOf())) {
+          dateLabel = date.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          });
+        }
+      }
+      chalkTextLine(
+        dateLabel,
+        CANVAS_W * 0.5,
+        CANVAS_H * 0.64,
+        "600 36px Arial",
+        "center"
+      );
+
+      chalkDartboard(CANVAS_W * 0.27, CANVAS_H * 0.76, CANVAS_H * 0.16);
+      chalkDart(CANVAS_W * 0.62, CANVAS_H * 0.78, CANVAS_H * 0.20, -0.35);
+
+      ctx.save();
+      ctx.strokeStyle = "rgba(255,255,255,0.16)";
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      const y = CANVAS_H * 0.90;
+      ctx.moveTo(CANVAS_W * 0.15, y);
+      for (let i = 0; i <= 18; i++) {
+        const x = CANVAS_W * 0.15 + (CANVAS_W * 0.70 * i) / 18;
+        ctx.lineTo(x, y + Math.sin(i * 0.65) * randBetween(-8, 8));
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+
     const tex = new THREE.CanvasTexture(canvas);
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.wrapS = THREE.ClampToEdgeWrapping;
@@ -355,6 +464,13 @@ export function createDailyDartsLogo(scene) {
         drawLeaderboardBoard(data);
         tex.needsUpdate = true;
       },
+      drawShareCard: (data) => {
+        drawShareCardBoard(data);
+        tex.needsUpdate = true;
+      },
+      toDataURL: (type, quality) => canvas.toDataURL(type, quality),
+      toBlob: (type, quality) =>
+        new Promise((resolve) => canvas.toBlob(resolve, type, quality)),
     };
   }
 
@@ -516,11 +632,16 @@ export function createDailyDartsLogo(scene) {
   const boardState = {
     mode: "logo",
     leaderboardData: null,
+    shareData: null,
   };
 
   function renderChalkboard() {
     if (boardState.mode === "leaderboard") {
       chalkboard.drawLeaderboard(boardState.leaderboardData);
+      return;
+    }
+    if (boardState.mode === "share") {
+      chalkboard.drawShareCard(boardState.shareData);
       return;
     }
     chalkboard.drawLogo();
@@ -579,7 +700,8 @@ export function createDailyDartsLogo(scene) {
       return false;
     },
     setMode: (mode = "logo") => {
-      boardState.mode = mode === "leaderboard" ? "leaderboard" : "logo";
+      boardState.mode =
+        mode === "leaderboard" ? "leaderboard" : mode === "share" ? "share" : "logo";
       renderChalkboard();
     },
     setLeaderboardData: (data) => {
@@ -587,6 +709,13 @@ export function createDailyDartsLogo(scene) {
       boardState.leaderboardData = data ?? null;
       renderChalkboard();
     },
+    drawShareCard: (data) => {
+      boardState.mode = "share";
+      boardState.shareData = data ?? null;
+      renderChalkboard();
+    },
+    toDataURL: (type, quality) => chalkboard.toDataURL(type, quality),
+    toBlob: (type, quality) => chalkboard.toBlob(type, quality),
 
     show: (opts = {}) => {
       state.holdForever = !!(opts && opts.holdForever);
