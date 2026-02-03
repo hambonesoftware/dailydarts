@@ -202,11 +202,13 @@ export function mountGame(
   let dartsThrown = 0;
   let totalScore = 0;
   let boardReadyForGameplay = false;
+  let roundEndShareImageUrl = "";
 
   function resetRound() {
     dartsThrown = 0;
     totalScore = 0;
     roundActive = true;
+    roundEndShareImageUrl = "";
 
     if (typeof actionManager.setLogoMode === "function") {
       actionManager.setLogoMode("logo");
@@ -231,7 +233,13 @@ export function mountGame(
     }
 
     roundHud.showToast("Round complete!");
-    roundHud.showRoundEnd({ totalScore });
+    roundEndShareImageUrl = generateShareCardDataUrl(totalScore);
+    roundHud.showRoundEnd({
+      totalScore,
+      shareImageUrl: roundEndShareImageUrl,
+      username: getPlayerIdentity().username,
+      postId: safePostId(),
+    });
 
     void finalizeRoundLeaderboard();
 
@@ -242,6 +250,35 @@ export function mountGame(
     resetRound();
   });
 
+  roundHud.setOnPostToComments(async (payload: any) => {
+    if (!payload || !payload.imageDataUrl) {
+      roundHud.showToast("No preview ready yet.");
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/comments/post", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          score: payload.score ?? totalScore,
+          username: payload.username ?? getPlayerIdentity().username,
+          postId: payload.postId ?? safePostId(),
+          imageDataUrl: payload.imageDataUrl,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Post to comments failed: ${response.status}`);
+      }
+
+      roundHud.showToast("Posted to comments!");
+    } catch (error) {
+      console.warn("Failed to post round summary", error);
+      roundHud.showToast("Post failed.");
+    }
+  });
+
   function getPlayerIdentity() {
     const username =
       (context && typeof context.username === "string" && context.username) ||
@@ -249,6 +286,25 @@ export function mountGame(
     const userId =
       (context && typeof context.userId === "string" && context.userId) || username;
     return { username, userId };
+  }
+
+  function safePostId() {
+    const anyCtx = context as any;
+    return anyCtx?.postId ?? anyCtx?.post?.id ?? anyCtx?.post?.name ?? undefined;
+  }
+
+  function buildShareCardData(score: number) {
+    const { username } = getPlayerIdentity();
+    return {
+      score,
+      username,
+      date: new Date().toISOString(),
+    };
+  }
+
+  function generateShareCardDataUrl(score: number) {
+    if (typeof actionManager.getShareCardDataUrl !== "function") return "";
+    return actionManager.getShareCardDataUrl(buildShareCardData(score));
   }
 
   async function submitRoundScore(score: number) {
@@ -308,7 +364,13 @@ export function mountGame(
           requestRender();
         }
 
-        roundHud.showRoundEnd({ totalScore, leaderboard: payload });
+        roundHud.showRoundEnd({
+          totalScore,
+          leaderboard: payload,
+          shareImageUrl: roundEndShareImageUrl,
+          username: payload.username,
+          postId: safePostId(),
+        });
       }
     } catch (error) {
       console.warn("Failed to fetch leaderboard", error);

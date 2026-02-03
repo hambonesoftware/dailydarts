@@ -280,7 +280,39 @@ function ensureHudStyles() {
   font-size: 34px;
   letter-spacing: 0.2px;
   color: rgba(255,255,255,0.98);
+}
+
+#dd-roundend .dd-roundend-score-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   margin-bottom: 12px;
+}
+
+#dd-roundend .dd-roundend-post-btn {
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+#dd-roundend .dd-roundend-preview {
+  margin-bottom: 12px;
+}
+
+#dd-roundend .dd-roundend-preview img {
+  width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(0,0,0,0.35);
+  display: block;
+}
+
+#dd-roundend .dd-roundend-preview.is-hidden {
+  display: none;
 }
 
 #dd-roundend .dd-roundend-leaderboard {
@@ -386,6 +418,11 @@ function ensureHudStyles() {
 
 #dd-roundend .dd-roundend-btn:active {
   transform: translateY(1px);
+}
+
+#dd-roundend .dd-roundend-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 @media (max-width: 420px) {
@@ -523,6 +560,22 @@ export function createRoundHud(options = {}) {
   roundEndScore.className = "dd-roundend-score";
   roundEndScore.textContent = "Score: 0";
 
+  const roundEndScoreRow = document.createElement("div");
+  roundEndScoreRow.className = "dd-roundend-score-row";
+
+  const btnPost = document.createElement("button");
+  btnPost.className = "dd-roundend-btn dd-roundend-post-btn";
+  btnPost.type = "button";
+  btnPost.textContent = "Post to comments";
+
+  const roundEndPreview = document.createElement("div");
+  roundEndPreview.className = "dd-roundend-preview is-hidden";
+
+  const roundEndPreviewImg = document.createElement("img");
+  roundEndPreviewImg.alt = "Round preview";
+
+  roundEndPreview.appendChild(roundEndPreviewImg);
+
   const roundEndLeaderboard = document.createElement("div");
   roundEndLeaderboard.className = "dd-roundend-leaderboard";
 
@@ -554,8 +607,12 @@ export function createRoundHud(options = {}) {
 
   roundEndLeaderboard.appendChild(roundEndLeaderboardBody);
 
+  roundEndScoreRow.appendChild(roundEndScore);
+  roundEndScoreRow.appendChild(btnPost);
+
   roundEndCard.appendChild(roundEndHeader);
-  roundEndCard.appendChild(roundEndScore);
+  roundEndCard.appendChild(roundEndScoreRow);
+  roundEndCard.appendChild(roundEndPreview);
   roundEndCard.appendChild(roundEndLeaderboard);
   roundEndCard.appendChild(roundEndFooterLine);
   roundEndCard.appendChild(roundEndActions);
@@ -566,9 +623,15 @@ export function createRoundHud(options = {}) {
   stageContainer.appendChild(roundEnd);
 
   let onPlayAgainCb = null;
+  let onPostToCommentsCb = null;
+  let lastRoundShare = null;
 
   function setOnPlayAgain(cb) {
     onPlayAgainCb = typeof cb === "function" ? cb : null;
+  }
+
+  function setOnPostToComments(cb) {
+    onPostToCommentsCb = typeof cb === "function" ? cb : null;
   }
 
   function hideRoundEnd() {
@@ -577,15 +640,34 @@ export function createRoundHud(options = {}) {
 
   function showRoundEnd(summary = {}) {
     const totalScore = safeInt(summary.totalScore, 0);
+    const shareImageUrl = safeStr(summary.shareImageUrl, "");
+    const shareUsername = safeStr(summary.username, "");
+    const sharePostId = safeStr(summary.postId, "");
     const leaderboard = summary?.leaderboard ?? null;
     const entries = Array.isArray(leaderboard?.top) ? leaderboard.top : [];
     const rankValue =
       typeof leaderboard?.rank === "number" ? leaderboard.rank : null;
 
     roundEndScore.textContent = `Score: ${totalScore}`;
+    btnPost.disabled = !shareImageUrl;
     roundEndTitle.textContent = leaderboard ? "Leaderboard" : "Round Complete";
     roundEndFooterLine.textContent =
       typeof rankValue === "number" ? `You are #${rankValue}` : "You are #—";
+
+    if (shareImageUrl) {
+      roundEndPreviewImg.src = shareImageUrl;
+      roundEndPreview.classList.remove("is-hidden");
+    } else {
+      roundEndPreviewImg.removeAttribute("src");
+      roundEndPreview.classList.add("is-hidden");
+    }
+
+    lastRoundShare = {
+      score: totalScore,
+      username: shareUsername,
+      postId: sharePostId,
+      imageDataUrl: shareImageUrl,
+    };
 
     // Clear old rows
     while (roundEndLeaderboardBody.firstChild) {
@@ -639,6 +721,12 @@ export function createRoundHud(options = {}) {
   btnAgain.addEventListener("click", () => {
     hideRoundEnd();
     if (onPlayAgainCb) onPlayAgainCb();
+  });
+
+  btnPost.addEventListener("click", () => {
+    if (onPostToCommentsCb) {
+      onPostToCommentsCb(lastRoundShare);
+    }
   });
 
   // Also close if user clicks the dim backdrop
@@ -708,6 +796,7 @@ export function createRoundHud(options = {}) {
     showRoundEnd,
     hideRoundEnd,
     setOnPlayAgain,
+    setOnPostToComments,
 
     destroy,
   };
