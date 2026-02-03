@@ -20,7 +20,7 @@ import { createPost } from "./core/post";
 const app = express();
 
 // Middleware for JSON body parsing
-app.use(express.json());
+app.use(express.json({ limit: "2mb" }));
 // Middleware for URL-encoded body parsing
 app.use(express.urlencoded({ extended: true }));
 // Middleware for plain text body parsing
