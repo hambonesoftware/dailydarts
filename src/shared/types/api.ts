@@ -62,3 +62,16 @@ export type CommentPostResponse = {
   ok: boolean;
   message?: string;
 };
+
+export type ShareImageCommentRequest = {
+  score: number;
+  username: string;
+  imageDataUrl: string;
+};
+
+export type ShareImageCommentResponse = {
+  type: "share-image/post-comment";
+  ok: boolean;
+  commentId?: string;
+  message?: string;
+};

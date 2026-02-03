@@ -12,9 +12,11 @@ import {
   LeaderboardEntry,
   CommentPostRequest,
   CommentPostResponse,
+  ShareImageCommentRequest,
+  ShareImageCommentResponse,
 } from "../shared/types/api";
 
-import { redis, reddit, createServer, context, getServerPort } from "@devvit/web/server";
+import { redis, reddit, media, createServer, context, getServerPort } from "@devvit/web/server";
 import { createPost } from "./core/post";
 
 const app = express();
@@ -64,6 +66,20 @@ function clampInt(n: unknown, min: number, max: number, fallback: number) {
   if (!Number.isFinite(v)) return fallback;
   const i = Math.floor(v);
   return Math.max(min, Math.min(max, i));
+}
+
+function normalizePostId(postId: string) {
+  if (postId.startsWith("t3_")) {
+    return postId;
+  }
+  return `t3_${postId}`;
+}
+
+function inferMediaType(imageDataUrl: string): "image" | "gif" {
+  if (imageDataUrl.startsWith("data:image/gif")) {
+    return "gif";
+  }
+  return "image";
 }
 
 async function readLeaderboardStore(postId: string): Promise<LeaderboardStoreV1> {
@@ -335,6 +351,71 @@ router.post("/api/comments/post", async (req: Request, res): Promise<void> => {
   };
 
   res.json(payload);
+});
+
+router.post("/api/share/comment", async (req: Request, res): Promise<void> => {
+  const { postId } = context;
+  const body = (req.body ?? {}) as ShareImageCommentRequest;
+
+  if (!postId) {
+    res.status(400).json({ status: "error", message: "postId is required" });
+    return;
+  }
+
+  const scoreNum = typeof body.score === "number" ? body.score : Number(body.score);
+  const score = Number.isFinite(scoreNum) ? Math.floor(scoreNum) : NaN;
+  const username =
+    (body && typeof body.username === "string" && body.username.trim()) ||
+    (await reddit.getCurrentUsername()) ||
+    "anonymous";
+  const imageDataUrl = body && typeof body.imageDataUrl === "string" ? body.imageDataUrl.trim() : "";
+
+  if (!Number.isFinite(score)) {
+    res.status(400).json({ status: "error", message: "score is required" });
+    return;
+  }
+
+  if (!username.trim()) {
+    res.status(400).json({ status: "error", message: "username is required" });
+    return;
+  }
+
+  if (!imageDataUrl) {
+    res.status(400).json({ status: "error", message: "imageDataUrl is required" });
+    return;
+  }
+
+  try {
+    const upload = await media.upload({
+      url: imageDataUrl,
+      type: inferMediaType(imageDataUrl),
+    });
+
+    const caption = `Score: ${score} • ${username}`;
+    const commentText = `${caption}\n\n![${caption}](${upload.mediaUrl})`;
+
+    const comment = await reddit.submitComment({
+      id: normalizePostId(postId),
+      text: commentText,
+      runAs: "APP",
+    });
+
+    const payload: ShareImageCommentResponse = {
+      type: "share-image/post-comment",
+      ok: true,
+      commentId: comment.id,
+    };
+
+    res.json(payload);
+  } catch (error) {
+    console.error("Share image comment failed:", error);
+    const payload: ShareImageCommentResponse = {
+      type: "share-image/post-comment",
+      ok: false,
+      message: error instanceof Error ? error.message : "Failed to post comment",
+    };
+    res.status(500).json(payload);
+  }
 });
 
 // ---------- Devvit internal endpoints ----------
