@@ -549,7 +549,7 @@ export function createRoundHud(options = {}) {
 
   const roundEndLogo = document.createElement("img");
   roundEndLogo.className = "dd-roundend-logo";
-  roundEndLogo.src = "assets/default-icon.png";
+  roundEndLogo.src = "/assets/default-icon.png";
   roundEndLogo.alt = "Daily Darts";
 
   const roundEndTitle = document.createElement("div");
