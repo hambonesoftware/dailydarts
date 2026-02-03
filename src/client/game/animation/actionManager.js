@@ -127,7 +127,10 @@ export function createActionManager(
       if (!logo || typeof logo.drawShareCard !== "function") return "";
       const prevMode = logoMode;
       logo.drawShareCard(data);
-      const url = typeof logo.toDataURL === "function" ? logo.toDataURL("image/png") : "";
+      const url =
+        typeof logo.toDataURL === "function"
+          ? logo.toDataURL("image/jpeg", 0.7)
+          : "";
       if (prevMode !== "share") {
         logoMode = prevMode;
         if (typeof logo.setMode === "function") {
