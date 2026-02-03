@@ -10,8 +10,6 @@ import {
   LeaderboardSubmitRequest,
   LeaderboardSubmitResponse,
   LeaderboardEntry,
-  CommentPostRequest,
-  CommentPostResponse,
   ShareImageCommentRequest,
   ShareImageCommentResponse,
 } from "../shared/types/api";
@@ -309,45 +307,6 @@ router.post("/api/leaderboard/submit", async (req: Request, res): Promise<void> 
     bestScore,
     top,
     callerRank,
-  };
-
-  res.json(payload);
-});
-
-router.post("/api/comments/post", async (req: Request, res): Promise<void> => {
-  const { postId } = context;
-  const body = (req.body ?? {}) as CommentPostRequest;
-
-  const resolvedPostId =
-    (body && typeof body.postId === "string" && body.postId.trim()) || postId;
-
-  if (!resolvedPostId) {
-    res.status(400).json({ status: "error", message: "postId is required" });
-    return;
-  }
-
-  const scoreNum = typeof body.score === "number" ? body.score : Number(body.score);
-  const score = Number.isFinite(scoreNum) ? Math.floor(scoreNum) : 0;
-  const username =
-    (body && typeof body.username === "string" && body.username.trim()) ||
-    (await reddit.getCurrentUsername()) ||
-    "anonymous";
-  const imageDataUrl =
-    body && typeof body.imageDataUrl === "string" ? body.imageDataUrl : "";
-
-  if (!imageDataUrl) {
-    res.status(400).json({ status: "error", message: "imageDataUrl is required" });
-    return;
-  }
-
-  console.log(
-    `Received comment post request for post ${resolvedPostId} from ${username} (score ${score}).`
-  );
-
-  const payload: CommentPostResponse = {
-    type: "comments-post",
-    ok: true,
-    message: "Received share payload",
   };
 
   res.json(payload);

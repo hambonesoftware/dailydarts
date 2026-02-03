@@ -259,7 +259,7 @@ export function mountGame(
     }
 
     try {
-      const response = await fetch("/api/comments/post", {
+      const response = await fetch("/api/share/comment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

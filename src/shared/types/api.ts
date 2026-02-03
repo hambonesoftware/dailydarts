@@ -50,19 +50,6 @@ export type LeaderboardSubmitResponse = {
   callerRank: number | null;
 };
 
-export type CommentPostRequest = {
-  score: number;
-  username: string;
-  postId?: string;
-  imageDataUrl?: string;
-};
-
-export type CommentPostResponse = {
-  type: "comments-post";
-  ok: boolean;
-  message?: string;
-};
-
 export type ShareImageCommentRequest = {
   score: number;
   username: string;
