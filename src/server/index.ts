@@ -345,43 +345,59 @@ router.post("/api/share/comment", async (req: Request, res): Promise<void> => {
     return;
   }
 
+  let upload: { mediaId: string };
   try {
-    const upload = await media.upload({
+    upload = await media.upload({
       url: imageDataUrl,
       type: inferMediaType(imageDataUrl),
     });
+  } catch (error) {
+    console.error("Share image upload failed:", error);
+    const payload: ShareImageCommentResponse = {
+      type: "share-image/post-comment",
+      ok: false,
+      message: error instanceof Error ? error.message : "Failed to upload image",
+      stage: "upload",
+    };
+    res.status(502).json(payload);
+    return;
+  }
 
-    const caption = `Score: ${score} • ${username}`;
-    const richtext = new RichTextBuilder();
-    if (caption) {
-      richtext.paragraph((paragraph) => {
-        paragraph.rawText(caption);
-      });
-    }
-    richtext.image({ mediaId: upload.mediaId });
+  const caption = `Score: ${score} • ${username}`;
+  const richtext = new RichTextBuilder();
+  if (caption) {
+    richtext.paragraph((paragraph) => {
+      paragraph.rawText(caption);
+    });
+  }
+  richtext.image({ mediaId: upload.mediaId });
 
-    const comment = await reddit.submitComment({
+  let comment: { id: string };
+  try {
+    comment = await reddit.submitComment({
       id: normalizePostId(postId),
       richtext,
       runAs: "APP",
     });
-
-    const payload: ShareImageCommentResponse = {
-      type: "share-image/post-comment",
-      ok: true,
-      commentId: comment.id,
-    };
-
-    res.json(payload);
   } catch (error) {
-    console.error("Share image comment failed:", error);
+    console.error("Share image comment submit failed:", error);
     const payload: ShareImageCommentResponse = {
       type: "share-image/post-comment",
       ok: false,
       message: error instanceof Error ? error.message : "Failed to post comment",
+      stage: "comment",
     };
-    res.status(500).json(payload);
+    res.status(502).json(payload);
+    return;
   }
+
+  const payload: ShareImageCommentResponse = {
+    type: "share-image/post-comment",
+    ok: true,
+    commentId: comment.id,
+  };
+
+  res.json(payload);
 });
 
 // ---------- Devvit internal endpoints ----------
