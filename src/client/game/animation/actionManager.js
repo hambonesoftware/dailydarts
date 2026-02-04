@@ -127,10 +127,27 @@ export function createActionManager(
       if (!logo || typeof logo.drawShareCard !== "function") return "";
       const prevMode = logoMode;
       logo.drawShareCard(data);
-      const url =
-        typeof logo.toDataURL === "function"
-          ? logo.toDataURL("image/jpeg", 0.7)
-          : "";
+      const sourceCanvas =
+        typeof logo.getCanvas === "function" ? logo.getCanvas() : null;
+      const targetWidth = sourceCanvas ? Math.min(sourceCanvas.width, 700) : 0;
+      const targetHeight = sourceCanvas
+        ? Math.max(1, Math.round((sourceCanvas.height / sourceCanvas.width) * targetWidth))
+        : 0;
+      let url = "";
+      if (sourceCanvas && targetWidth > 0 && targetHeight > 0) {
+        const scaledCanvas = document.createElement("canvas");
+        scaledCanvas.width = targetWidth;
+        scaledCanvas.height = targetHeight;
+        const ctx = scaledCanvas.getContext("2d");
+        if (ctx) {
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = "high";
+          ctx.drawImage(sourceCanvas, 0, 0, targetWidth, targetHeight);
+          url = scaledCanvas.toDataURL("image/jpeg", 0.65);
+        }
+      } else if (typeof logo.toDataURL === "function") {
+        url = logo.toDataURL("image/jpeg", 0.65);
+      }
       if (prevMode !== "share") {
         logoMode = prevMode;
         if (typeof logo.setMode === "function") {

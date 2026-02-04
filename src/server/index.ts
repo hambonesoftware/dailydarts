@@ -14,6 +14,7 @@ import {
   ShareImageCommentResponse,
 } from "../shared/types/api";
 
+import { RichTextBuilder } from "@devvit/public-api";
 import { redis, reddit, media, createServer, context, getServerPort } from "@devvit/web/server";
 import { createPost } from "./core/post";
 
@@ -351,11 +352,17 @@ router.post("/api/share/comment", async (req: Request, res): Promise<void> => {
     });
 
     const caption = `Score: ${score} • ${username}`;
-    const commentText = `${caption}\n\n![${caption}](${upload.mediaUrl})`;
+    const richtext = new RichTextBuilder();
+    if (caption) {
+      richtext.paragraph((paragraph) => {
+        paragraph.rawText(caption);
+      });
+    }
+    richtext.image({ mediaId: upload.mediaId });
 
     const comment = await reddit.submitComment({
       id: normalizePostId(postId),
-      text: commentText,
+      richtext,
       runAs: "APP",
     });
 
