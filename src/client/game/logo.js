@@ -93,6 +93,7 @@ export function createDailyDartsLogo(scene) {
         drawLogo: () => {},
         drawLeaderboard: () => {},
         drawShareCard: () => {},
+        getCanvas: () => fallback,
         toDataURL: (type, quality) => fallback.toDataURL(type, quality),
         toBlob: (type, quality) =>
           new Promise((resolve) => fallback.toBlob(resolve, type, quality)),
@@ -519,6 +520,7 @@ export function createDailyDartsLogo(scene) {
         drawShareCardBoard(data);
         tex.needsUpdate = true;
       },
+      getCanvas: () => canvas,
       toDataURL: (type, quality) => canvas.toDataURL(type, quality),
       toBlob: (type, quality) =>
         new Promise((resolve) => canvas.toBlob(resolve, type, quality)),
