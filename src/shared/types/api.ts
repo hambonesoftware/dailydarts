@@ -61,4 +61,5 @@ export type ShareImageCommentResponse = {
   ok: boolean;
   commentId?: string;
   message?: string;
+  stage?: "upload" | "comment" | "unknown";
 };

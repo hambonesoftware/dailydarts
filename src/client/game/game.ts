@@ -276,7 +276,28 @@ export function mountGame(
       });
 
       if (!response.ok) {
-        throw new Error(`Post to comments failed: ${response.status}`);
+        let errorBody: any = null;
+        try {
+          errorBody = await response.json();
+        } catch (jsonError) {
+          console.warn("Failed to parse share comment error", jsonError);
+        }
+
+        const stage = errorBody && typeof errorBody === "object" ? errorBody.stage : undefined;
+        const message =
+          errorBody && typeof errorBody.message === "string" ? errorBody.message.trim() : "";
+
+        let toastMessage = "Post failed.";
+        if (stage === "upload") {
+          toastMessage = "Upload failed.";
+        } else if (stage === "comment") {
+          toastMessage = "Comment failed.";
+        } else if (message) {
+          toastMessage = message;
+        }
+
+        roundHud.showToast(toastMessage);
+        return;
       }
 
       roundHud.showToast("Posted to comments!");
