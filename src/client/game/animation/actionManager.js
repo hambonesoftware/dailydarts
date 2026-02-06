@@ -38,6 +38,7 @@ export function createActionManager(
   // Callback fired once, after a dart is snapped into its final "stuck" pose.
   // Use this to trigger result-only FX (e.g., hitGlow) after the impact position is finalized.
   let onDartLanded = null;
+  let onDartReset = null;
 
   // Systems
   const trails = createMotionTrailSystem(scene);
@@ -162,6 +163,9 @@ export function createActionManager(
     setOnDartLanded: (fn) => {
       onDartLanded = typeof fn === "function" ? fn : null;
     },
+    setOnDartReset: (fn) => {
+      onDartReset = typeof fn === "function" ? fn : null;
+    },
 
     isBusy: () => {
       return activeDarts.some(
@@ -226,6 +230,7 @@ export function createActionManager(
         impactDone: false,
         logoShown: false,
         landedEventFired: false,
+        resetEventFired: false,
       };
 
       scene.add(dart);
@@ -387,6 +392,21 @@ export function createActionManager(
           if (impactCam.resetComplete) {
             if (controls) controls.enabled = impactCam.controlsEnabled;
             dart.userData.impactDone = true;
+
+            if (!dart.userData.resetEventFired) {
+              dart.userData.resetEventFired = true;
+              if (onDartReset) {
+                try {
+                  onDartReset({
+                    dart,
+                    dartboard,
+                    impactWorld: dart.userData.p3.clone(),
+                  });
+                } catch (err) {
+                  console.warn("onDartReset callback failed", err);
+                }
+              }
+            }
 
             if (dart.parent) scene.remove(dart);
             activeDarts.splice(i, 1);

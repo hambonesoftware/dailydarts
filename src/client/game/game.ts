@@ -493,7 +493,11 @@ export function mountGame(
           pendingHitGlow = null;
         }
       }
+    });
+  }
 
+  if (typeof actionManager.setOnDartReset === "function") {
+    actionManager.setOnDartReset(() => {
       if (pendingRoundEnd && roundActive) {
         pendingRoundEnd = false;
         endRound();
