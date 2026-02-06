@@ -444,19 +444,25 @@ router.post("/api/share/comment", async (req: Request, res): Promise<void> => {
     return;
   }
 
+  console.debug("share/comment upload", {
+    mediaId: upload.mediaId,
+    mediaUrl: (upload as { mediaUrl?: string }).mediaUrl,
+  });
+
   const caption = `Score: ${score} • ${username}`;
-  const richtext = new RichTextBuilder();
-  if (caption) {
-    richtext.paragraph((paragraph) => {
+  const richtextBuilder = new RichTextBuilder()
+    .paragraph((paragraph) => {
       paragraph.rawText(caption);
-    });
-  }
-  richtext.image({ mediaId: upload.mediaId });
+    })
+    .image({ mediaId: upload.mediaId });
+  const richtext = typeof richtextBuilder.build === "function" ? richtextBuilder.build() : richtextBuilder;
 
   let comment: { id: string };
   try {
+    const normalizedParentId = normalizePostId(postId);
+    console.debug("share/comment parent", { parentId: normalizedParentId });
     comment = await reddit.submitComment({
-      id: normalizePostId(postId),
+      id: normalizedParentId,
       richtext,
       runAs: "APP",
     });
@@ -471,6 +477,8 @@ router.post("/api/share/comment", async (req: Request, res): Promise<void> => {
     res.status(502).json(payload);
     return;
   }
+
+  console.debug("share/comment submitted", { commentId: comment.id });
 
   const mediaCheck = await commentHasMediaNode(comment.id, upload.mediaId);
   if (mediaCheck.checked && !mediaCheck.hasMedia) {
