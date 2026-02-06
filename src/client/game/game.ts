@@ -206,6 +206,8 @@ export function mountGame(
   let boardReadyForGameplay = false;
   let roundEndShareImageUrl = "";
   let pendingRoundEnd = false;
+  let isPostingComment = false;
+  let hasPostedComment = false;
 
   function resetRound() {
     dartsThrown = 0;
@@ -214,6 +216,8 @@ export function mountGame(
     roundActive = true;
     roundEndShareImageUrl = "";
     pendingRoundEnd = false;
+    isPostingComment = false;
+    hasPostedComment = false;
 
     if (typeof actionManager.setLogoMode === "function") {
       actionManager.setLogoMode("logo");
@@ -244,6 +248,7 @@ export function mountGame(
       shareImageUrl: roundEndShareImageUrl,
       username: getPlayerIdentity().username,
       postId: safePostId(),
+      posted: hasPostedComment,
     });
 
     void finalizeRoundLeaderboard();
@@ -256,6 +261,13 @@ export function mountGame(
   });
 
   roundHud.setOnPostToComments(async (payload: any) => {
+    if (hasPostedComment) {
+      roundHud.setPostToCommentsEnabled(false, "Posted");
+      return;
+    }
+    if (isPostingComment) {
+      return;
+    }
     if (!payload || !payload.imageDataUrl) {
       roundHud.showToast("No preview ready yet.");
       return;
@@ -266,6 +278,7 @@ export function mountGame(
     }
 
     try {
+      isPostingComment = true;
       roundHud.setPostToCommentsEnabled(false, "Posting...");
       const response = await fetch("/api/share/comment", {
         method: "POST",
@@ -299,6 +312,7 @@ export function mountGame(
           toastMessage = "Comment failed.";
         }
 
+        isPostingComment = false;
         roundHud.setPostToCommentsEnabled(true);
         roundHud.showToast(toastMessage);
         return;
@@ -309,7 +323,9 @@ export function mountGame(
           typeof responseBody.message === "string" && responseBody.message.trim()
             ? responseBody.message.trim()
             : "Comment posted, but image embed was stripped by subreddit/client settings.";
-        roundHud.setPostToCommentsEnabled(false, "Posted!");
+        isPostingComment = false;
+        hasPostedComment = true;
+        roundHud.setPostToCommentsEnabled(false, "Posted");
         roundHud.showToast(message);
         return;
       }
@@ -320,16 +336,21 @@ export function mountGame(
             ? responseBody.message.trim()
             : "";
         if (message) {
-          roundHud.setPostToCommentsEnabled(false, "Posted!");
+          isPostingComment = false;
+          hasPostedComment = true;
+          roundHud.setPostToCommentsEnabled(false, "Posted");
           roundHud.showToast(message);
           return;
         }
       }
 
-      roundHud.setPostToCommentsEnabled(false, "Posted!");
+      isPostingComment = false;
+      hasPostedComment = true;
+      roundHud.setPostToCommentsEnabled(false, "Posted");
       roundHud.showToast("Posted to comments!");
     } catch (error) {
       console.warn("Failed to post round summary", error);
+      isPostingComment = false;
       roundHud.setPostToCommentsEnabled(true);
       roundHud.showToast("Post failed.");
     }

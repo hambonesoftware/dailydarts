@@ -644,13 +644,18 @@ export function createRoundHud(options = {}) {
     const shareImageUrl = safeStr(summary.shareImageUrl, "");
     const shareUsername = safeStr(summary.username, "");
     const sharePostId = safeStr(summary.postId, "");
+    const hasPosted = Boolean(summary.posted);
     const leaderboard = summary?.leaderboard ?? null;
     const entries = Array.isArray(leaderboard?.top) ? leaderboard.top : [];
     const rankValue =
       typeof leaderboard?.rank === "number" ? leaderboard.rank : null;
 
     roundEndScore.textContent = `Score: ${totalScore}`;
-    setPostToCommentsEnabled(Boolean(shareImageUrl), defaultPostLabel);
+    if (hasPosted) {
+      setPostToCommentsEnabled(false, "Posted");
+    } else {
+      setPostToCommentsEnabled(Boolean(shareImageUrl), defaultPostLabel);
+    }
     roundEndTitle.textContent = leaderboard ? "Leaderboard" : "Round Complete";
     roundEndFooterLine.textContent =
       typeof rankValue === "number" ? `You are #${rankValue}` : "You are #—";
