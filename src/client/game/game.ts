@@ -266,6 +266,7 @@ export function mountGame(
     }
 
     try {
+      roundHud.setPostToCommentsEnabled(false, "Posting...");
       const response = await fetch("/api/share/comment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -298,6 +299,7 @@ export function mountGame(
           toastMessage = "Comment failed.";
         }
 
+        roundHud.setPostToCommentsEnabled(true);
         roundHud.showToast(toastMessage);
         return;
       }
@@ -307,6 +309,7 @@ export function mountGame(
           typeof responseBody.message === "string" && responseBody.message.trim()
             ? responseBody.message.trim()
             : "Comment posted, but image embed was stripped by subreddit/client settings.";
+        roundHud.setPostToCommentsEnabled(false, "Posted!");
         roundHud.showToast(message);
         return;
       }
@@ -317,14 +320,17 @@ export function mountGame(
             ? responseBody.message.trim()
             : "";
         if (message) {
+          roundHud.setPostToCommentsEnabled(false, "Posted!");
           roundHud.showToast(message);
           return;
         }
       }
 
+      roundHud.setPostToCommentsEnabled(false, "Posted!");
       roundHud.showToast("Posted to comments!");
     } catch (error) {
       console.warn("Failed to post round summary", error);
+      roundHud.setPostToCommentsEnabled(true);
       roundHud.showToast("Post failed.");
     }
   });

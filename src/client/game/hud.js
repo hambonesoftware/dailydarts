@@ -566,7 +566,8 @@ export function createRoundHud(options = {}) {
   const btnPost = document.createElement("button");
   btnPost.className = "dd-roundend-btn dd-roundend-post-btn";
   btnPost.type = "button";
-  btnPost.textContent = "Post to comments";
+  const defaultPostLabel = "Post to comments";
+  btnPost.textContent = defaultPostLabel;
 
   const roundEndPreview = document.createElement("div");
   roundEndPreview.className = "dd-roundend-preview is-hidden";
@@ -649,7 +650,7 @@ export function createRoundHud(options = {}) {
       typeof leaderboard?.rank === "number" ? leaderboard.rank : null;
 
     roundEndScore.textContent = `Score: ${totalScore}`;
-    btnPost.disabled = !shareImageUrl;
+    setPostToCommentsEnabled(Boolean(shareImageUrl), defaultPostLabel);
     roundEndTitle.textContent = leaderboard ? "Leaderboard" : "Round Complete";
     roundEndFooterLine.textContent =
       typeof rankValue === "number" ? `You are #${rankValue}` : "You are #—";
@@ -784,6 +785,13 @@ export function createRoundHud(options = {}) {
     // in dev may share them; if you want to remove, do it here.
   }
 
+  function setPostToCommentsEnabled(isEnabled, label = defaultPostLabel) {
+    btnPost.disabled = !isEnabled;
+    if (typeof label === "string") {
+      btnPost.textContent = label;
+    }
+  }
+
   return {
     maxDarts,
 
@@ -797,6 +805,7 @@ export function createRoundHud(options = {}) {
     hideRoundEnd,
     setOnPlayAgain,
     setOnPostToComments,
+    setPostToCommentsEnabled,
 
     destroy,
   };
