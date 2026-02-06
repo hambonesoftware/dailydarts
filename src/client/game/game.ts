@@ -275,17 +275,17 @@ export function mountGame(
         }),
       });
 
-      if (!response.ok) {
-        let errorBody: any = null;
-        try {
-          errorBody = await response.json();
-        } catch (jsonError) {
-          console.warn("Failed to parse share comment error", jsonError);
-        }
+      let responseBody: any = null;
+      try {
+        responseBody = await response.json();
+      } catch (jsonError) {
+        console.warn("Failed to parse share comment response", jsonError);
+      }
 
-        const stage = errorBody && typeof errorBody === "object" ? errorBody.stage : undefined;
+      if (!response.ok) {
+        const stage = responseBody && typeof responseBody === "object" ? responseBody.stage : undefined;
         const message =
-          errorBody && typeof errorBody.message === "string" ? errorBody.message.trim() : "";
+          responseBody && typeof responseBody.message === "string" ? responseBody.message.trim() : "";
 
         let toastMessage = "Post failed.";
         if (stage === "upload") {
@@ -297,6 +297,15 @@ export function mountGame(
         }
 
         roundHud.showToast(toastMessage);
+        return;
+      }
+
+      if (responseBody && typeof responseBody === "object" && responseBody.ok === false) {
+        const message =
+          typeof responseBody.message === "string" && responseBody.message.trim()
+            ? responseBody.message.trim()
+            : "Comment posted, but image embed was stripped by subreddit/client settings.";
+        roundHud.showToast(message);
         return;
       }
 

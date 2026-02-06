@@ -17,6 +17,7 @@ import {
 import { RichTextBuilder } from "@devvit/public-api";
 import { redis, reddit, media, createServer, context, getServerPort } from "@devvit/web/server";
 import { createPost } from "./core/post";
+import { getRedditApiPlugins } from "@devvit/reddit/plugin";
 
 const app = express();
 
@@ -79,6 +80,86 @@ function inferMediaType(imageDataUrl: string): "image" | "gif" {
     return "gif";
   }
   return "image";
+}
+
+function parseRichtextCandidate(candidate: unknown): unknown | null {
+  if (!candidate) {
+    return null;
+  }
+  if (typeof candidate === "string") {
+    try {
+      return JSON.parse(candidate);
+    } catch (error) {
+      console.warn("Failed to parse RTJSON candidate:", error);
+      return null;
+    }
+  }
+  if (typeof candidate === "object") {
+    return candidate;
+  }
+  return null;
+}
+
+function richtextContainsMediaId(node: unknown, mediaId: string): boolean {
+  if (!node || typeof node !== "object") {
+    return false;
+  }
+  if (Array.isArray(node)) {
+    return node.some((item) => richtextContainsMediaId(item, mediaId));
+  }
+  const record = node as Record<string, unknown>;
+  const mediaIdValue = record.mediaId ?? record.media_id ?? record.id;
+  if (typeof mediaIdValue === "string" && mediaIdValue === mediaId) {
+    return true;
+  }
+  return Object.values(record).some((value) => richtextContainsMediaId(value, mediaId));
+}
+
+async function commentHasMediaNode(commentId: string, mediaId: string): Promise<{
+  checked: boolean;
+  hasMedia: boolean;
+}> {
+  try {
+    const info = await getRedditApiPlugins().LinksAndComments.Info(
+      {
+        subreddits: [],
+        thingIds: [commentId],
+      },
+      context.metadata
+    );
+    const data = info?.data?.children?.[0]?.data as Record<string, unknown> | undefined;
+    if (!data) {
+      return { checked: false, hasMedia: false };
+    }
+
+    const richtextCandidate =
+      data.richtextJson ??
+      data.richtext_json ??
+      data.rtjson ??
+      data.rtJson ??
+      data.bodyRichtext ??
+      data.body_richtext ??
+      data.richtext;
+    const parsedRichtext = parseRichtextCandidate(richtextCandidate);
+    if (parsedRichtext) {
+      return { checked: true, hasMedia: richtextContainsMediaId(parsedRichtext, mediaId) };
+    }
+
+    const mediaMetadata = data.media_metadata;
+    if (mediaMetadata && typeof mediaMetadata === "object" && mediaId in mediaMetadata) {
+      return { checked: true, hasMedia: true };
+    }
+
+    const rteMode = data.rteMode ?? data.rte_mode;
+    if (typeof rteMode === "string") {
+      return { checked: true, hasMedia: rteMode.toLowerCase() === "richtext" };
+    }
+
+    return { checked: false, hasMedia: false };
+  } catch (error) {
+    console.warn("Failed to verify comment RTJSON:", error);
+    return { checked: false, hasMedia: false };
+  }
 }
 
 async function readLeaderboardStore(postId: string): Promise<LeaderboardStoreV1> {
@@ -388,6 +469,20 @@ router.post("/api/share/comment", async (req: Request, res): Promise<void> => {
       stage: "comment",
     };
     res.status(502).json(payload);
+    return;
+  }
+
+  const mediaCheck = await commentHasMediaNode(comment.id, upload.mediaId);
+  if (mediaCheck.checked && !mediaCheck.hasMedia) {
+    const payload: ShareImageCommentResponse = {
+      type: "share-image/post-comment",
+      ok: false,
+      commentId: comment.id,
+      degraded: true,
+      message: "Comment posted, but image embed was stripped by subreddit/client settings.",
+      stage: "comment",
+    };
+    res.json(payload);
     return;
   }
 

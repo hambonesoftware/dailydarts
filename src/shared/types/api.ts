@@ -59,6 +59,7 @@ export type ShareImageCommentRequest = {
 export type ShareImageCommentResponse = {
   type: "share-image/post-comment";
   ok: boolean;
+  degraded?: true;
   commentId?: string;
   message?: string;
   stage?: "upload" | "comment" | "unknown";
