@@ -52,6 +52,7 @@ export type LeaderboardSubmitResponse = {
 
 export type ShareImageCommentRequest = {
   score: number;
+  userId?: string;
   username: string;
   imageDataUrl: string;
 };

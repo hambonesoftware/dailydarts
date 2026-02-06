@@ -81,24 +81,6 @@ function inferMediaType(imageDataUrl: string): "image" | "gif" {
   return "image";
 }
 
-function parseRichtextCandidate(candidate: unknown): unknown | null {
-  if (!candidate) {
-    return null;
-  }
-  if (typeof candidate === "string") {
-    try {
-      return JSON.parse(candidate);
-    } catch (error) {
-      console.warn("Failed to parse RTJSON candidate:", error);
-      return null;
-    }
-  }
-  if (typeof candidate === "object") {
-    return candidate;
-  }
-  return null;
-}
-
 function normalizeErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message || "";
@@ -123,17 +105,6 @@ function isMediaUploadRejected(message: string): boolean {
   );
 }
 
-function isCommentMediaNotAllowed(message: string): boolean {
-  const normalized = message.toLowerCase();
-  return (
-    normalized.includes("media") &&
-    (normalized.includes("not allowed") ||
-      normalized.includes("inline") ||
-      normalized.includes("comments") ||
-      normalized.includes("comment"))
-  );
-}
-
 function isRateLimited(message: string): boolean {
   const normalized = message.toLowerCase();
   return (
@@ -143,38 +114,8 @@ function isRateLimited(message: string): boolean {
   );
 }
 
-function richtextContainsMediaId(node: unknown, mediaId: string): boolean {
-  if (!node || typeof node !== "object") {
-    return false;
-  }
-  if (Array.isArray(node)) {
-    return node.some((item) => richtextContainsMediaId(item, mediaId));
-  }
-  const record = node as Record<string, unknown>;
-  const mediaIdValue = record.mediaId ?? record.media_id ?? record.id;
-  if (typeof mediaIdValue === "string" && mediaIdValue === mediaId) {
-    return true;
-  }
-  return Object.values(record).some((value) => richtextContainsMediaId(value, mediaId));
-}
-
-async function commentHasMediaNode(commentId: string, mediaId: string): Promise<{
-  checked: boolean;
-  hasMedia: boolean;
-}> {
-  try {
-    const comment = await reddit.getCommentById(commentId);
-    const body = typeof comment.body === "string" ? comment.body : "";
-
-    if (body.includes(mediaId)) {
-      return { checked: true, hasMedia: true };
-    }
-
-    return { checked: false, hasMedia: false };
-  } catch (error) {
-    console.warn("Failed to verify comment content:", error);
-    return { checked: false, hasMedia: false };
-  }
+function keyShareRateLimit(postId: string, userId: string) {
+  return `dd:share:${postId}:${userId}`;
 }
 
 async function readLeaderboardStore(postId: string): Promise<LeaderboardStoreV1> {
@@ -412,6 +353,8 @@ router.post("/api/leaderboard/submit", async (req: Request, res): Promise<void> 
 router.post("/api/share/comment", async (req: Request, res): Promise<void> => {
   const { postId } = context;
   const body = (req.body ?? {}) as ShareImageCommentRequest;
+  const now = Date.now();
+  const shareRateLimitMs = 500 * 1000;
 
   if (!postId) {
     res.status(400).json({ status: "error", message: "postId is required" });
@@ -420,14 +363,22 @@ router.post("/api/share/comment", async (req: Request, res): Promise<void> => {
 
   const scoreNum = typeof body.score === "number" ? body.score : Number(body.score);
   const score = Number.isFinite(scoreNum) ? Math.floor(scoreNum) : NaN;
+  const userId =
+    (body && typeof body.userId === "string" && body.userId.trim()) ||
+    (await reddit.getCurrentUsername()) ||
+    "anonymous";
   const username =
     (body && typeof body.username === "string" && body.username.trim()) ||
     (await reddit.getCurrentUsername()) ||
     "anonymous";
   const imageDataUrl = body && typeof body.imageDataUrl === "string" ? body.imageDataUrl.trim() : "";
-
   if (!Number.isFinite(score)) {
     res.status(400).json({ status: "error", message: "score is required" });
+    return;
+  }
+
+  if (!imageDataUrl) {
+    res.status(400).json({ status: "error", message: "imageDataUrl is required" });
     return;
   }
 
@@ -436,8 +387,18 @@ router.post("/api/share/comment", async (req: Request, res): Promise<void> => {
     return;
   }
 
-  if (!imageDataUrl) {
-    res.status(400).json({ status: "error", message: "imageDataUrl is required" });
+  const rateKey = keyShareRateLimit(postId, userId);
+  const lastShareRaw = await (redis as any).get(rateKey);
+  const lastShare = typeof lastShareRaw === "string" ? Number(lastShareRaw) : Number(lastShareRaw);
+  if (Number.isFinite(lastShare) && now - lastShare < shareRateLimitMs) {
+    const remainingSeconds = Math.ceil((shareRateLimitMs - (now - lastShare)) / 1000);
+    const payload: ShareImageCommentResponse = {
+      type: "share-image/post-comment",
+      ok: false,
+      message: `You're rate limited. Try again in ${remainingSeconds}s.`,
+      stage: "comment",
+    };
+    res.status(429).json(payload);
     return;
   }
 
@@ -497,28 +458,6 @@ router.post("/api/share/comment", async (req: Request, res): Promise<void> => {
       res.status(429).json(payload);
       return;
     }
-    if (isCommentMediaNotAllowed(errorMessage)) {
-      try {
-        const normalizedParentId = normalizePostId(postId);
-        comment = await reddit.submitComment({
-          id: normalizedParentId,
-          text: caption,
-          runAs: "APP",
-        });
-        const payload: ShareImageCommentResponse = {
-          type: "share-image/post-comment",
-          ok: true,
-          degraded: true,
-          commentId: comment.id,
-          message: "Posted as text-only fallback.",
-          stage: "comment",
-        };
-        res.json(payload);
-        return;
-      } catch (fallbackError) {
-        console.error("Share image comment fallback failed:", fallbackError);
-      }
-    }
     const payload: ShareImageCommentResponse = {
       type: "share-image/post-comment",
       ok: false,
@@ -530,20 +469,7 @@ router.post("/api/share/comment", async (req: Request, res): Promise<void> => {
   }
 
   console.debug("share/comment submitted", { commentId: comment.id });
-
-  const mediaCheck = await commentHasMediaNode(comment.id, upload.mediaId);
-  if (mediaCheck.checked && !mediaCheck.hasMedia) {
-    const payload: ShareImageCommentResponse = {
-      type: "share-image/post-comment",
-      ok: true,
-      commentId: comment.id,
-      degraded: true,
-      message: "Image uploaded, but this thread/subreddit doesn’t allow inline comment images.",
-      stage: "comment",
-    };
-    res.json(payload);
-    return;
-  }
+  await (redis as any).set(rateKey, String(now));
 
   const payload: ShareImageCommentResponse = {
     type: "share-image/post-comment",
