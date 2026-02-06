@@ -436,11 +436,35 @@ router.post("/api/share/comment", async (req: Request, res): Promise<void> => {
   try {
     const normalizedParentId = normalizePostId(postId);
     console.debug("share/comment parent", { parentId: normalizedParentId });
-    comment = await reddit.submitComment({
-      id: normalizedParentId,
-      richtext,
-      runAs: "APP",
-    });
+    const maxAttempts = 3;
+    let attempt = 0;
+    while (true) {
+      attempt += 1;
+      try {
+        console.debug("share/comment submit attempt", { attempt });
+        comment = await reddit.submitComment({
+          id: normalizedParentId,
+          richtext,
+          runAs: "APP",
+        });
+        break;
+      } catch (error) {
+        const errorMessage = normalizeErrorMessage(error);
+        const shouldRetry = errorMessage.includes("IMAGE_MEDIA_IN_COMMENTS_PROCESSING_FAILURE");
+        const hasAttemptsLeft = attempt < maxAttempts;
+        console.warn("share/comment submit failed", {
+          attempt,
+          error: errorMessage || error,
+          retrying: shouldRetry && hasAttemptsLeft,
+        });
+        if (!shouldRetry || !hasAttemptsLeft) {
+          throw error;
+        }
+        const delayMs = 500 + Math.floor(Math.random() * 1000);
+        console.info("share/comment retry delay", { attempt, delayMs });
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
   } catch (error) {
     console.error("Share image comment submit failed:", error);
     const errorMessage = normalizeErrorMessage(error);
