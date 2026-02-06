@@ -22,7 +22,7 @@ const AIM_DISC_Z = DART_TARGET_OFFSET + 0.06;
 
 const MAX_DARTS_PER_ROUND = 10;
 const LEADERBOARD_LIMIT = 5;
-const MAX_SHARE_IMAGE_DATA_URL_LENGTH = 1_500_000;
+const MAX_SHARE_IMAGE_DATA_URL_LENGTH = 3_000_000;
 
 declare global {
   interface Window {
