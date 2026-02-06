@@ -428,7 +428,8 @@ router.post("/api/share/comment", async (req: Request, res): Promise<void> => {
     mediaUrl: (upload as { mediaUrl?: string }).mediaUrl,
   });
 
-  const richtextBuilder = new RichTextBuilder().image({ mediaId: upload.mediaId });
+  const resultLine = `Round result: ${username} scored ${score}.`;
+  const richtextBuilder = new RichTextBuilder().text(resultLine).image({ mediaId: upload.mediaId });
   const richtext = typeof richtextBuilder.build === "function" ? richtextBuilder.build() : richtextBuilder;
 
   let comment: { id: string };
