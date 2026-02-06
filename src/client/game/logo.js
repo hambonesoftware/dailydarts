@@ -482,8 +482,8 @@ export function createDailyDartsLogo(scene) {
         "center"
       );
 
-      chalkDartboard(CANVAS_W * 0.22, CANVAS_H * 0.66, CANVAS_H * 0.14);
-      chalkDart(CANVAS_W * 0.58, CANVAS_H * 0.68, CANVAS_H * 0.17, -0.35);
+      //chalkDartboard(CANVAS_W * 0.22, CANVAS_H * 0.66, CANVAS_H * 0.14);
+      //chalkDart(CANVAS_W * 0.58, CANVAS_H * 0.68, CANVAS_H * 0.17, -0.35);
 
       ctx.save();
       ctx.strokeStyle = "rgba(255,255,255,0.16)";

@@ -264,24 +264,21 @@ export function scoreFromBoardXY(x, y, scoringConfig) {
 export function formatHitForHud(scoreResult) {
   if (!scoreResult || typeof scoreResult !== "object") return "—";
 
-  const label = typeof scoreResult.label === "string" ? scoreResult.label : "—";
+  const rawLabel = typeof scoreResult.label === "string" ? scoreResult.label : "—";
   const pts = Number(scoreResult.points) || 0;
 
-  if (label === "MISS") return "MISS (+0)";
-  if (label === "SBULL") return `Single Bull (+${pts})`;
-  if (label === "DBULL") return `Double Bull (+${pts})`;
+  // Extract only the letters from the start of the label (e.g., "T20" becomes "T")
+  const labelPrefix = rawLabel.replace(/[0-9]/g, '');
 
-  const prefixMatch = label.match(/^([SDT])(\\d+)$/);
-  if (prefixMatch) {
-    const prefixMap = { S: "Single", D: "Double", T: "Triple" };
-    const [, prefix, value] = prefixMatch;
-    const prefixWord = prefixMap[prefix] || prefix;
-    return `${prefixWord} ${value} (+${pts})`;
-  }
 
-  return `${label} (+${pts})`;
+  if (labelPrefix === "SBULL") return `Single Bull (+${pts})`;
+  if (labelPrefix === "DBULL") return `Double Bull (+${pts})`;
+  if (labelPrefix === "T") return `Triple +${pts}/3 (+${pts})`;
+  if (labelPrefix === "D") return `Double +${pts}/2 (+${pts})`;
+  if (labelPrefix === "S") return `Single +${pts}`;
+
+  return `${rawLabel}`;
 }
-
 /**
  * Small helper: validate that scoring config looks sane.
  * Useful for debugging / logging once during startup.
