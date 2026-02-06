@@ -17,7 +17,6 @@ import {
 import { RichTextBuilder } from "@devvit/public-api";
 import { redis, reddit, media, createServer, context, getServerPort } from "@devvit/web/server";
 import { createPost } from "./core/post";
-import { getRedditApiPlugins } from "@devvit/reddit/plugin";
 
 const app = express();
 
@@ -155,44 +154,16 @@ async function commentHasMediaNode(commentId: string, mediaId: string): Promise<
   hasMedia: boolean;
 }> {
   try {
-    const info = await getRedditApiPlugins().LinksAndComments.Info(
-      {
-        subreddits: [],
-        thingIds: [commentId],
-      },
-      context.metadata
-    );
-    const data = info?.data?.children?.[0]?.data as Record<string, unknown> | undefined;
-    if (!data) {
-      return { checked: false, hasMedia: false };
-    }
+    const comment = await reddit.getCommentById(commentId);
+    const body = typeof comment.body === "string" ? comment.body : "";
 
-    const richtextCandidate =
-      data.richtextJson ??
-      data.richtext_json ??
-      data.rtjson ??
-      data.rtJson ??
-      data.bodyRichtext ??
-      data.body_richtext ??
-      data.richtext;
-    const parsedRichtext = parseRichtextCandidate(richtextCandidate);
-    if (parsedRichtext) {
-      return { checked: true, hasMedia: richtextContainsMediaId(parsedRichtext, mediaId) };
-    }
-
-    const mediaMetadata = data.media_metadata;
-    if (mediaMetadata && typeof mediaMetadata === "object" && mediaId in mediaMetadata) {
+    if (body.includes(mediaId)) {
       return { checked: true, hasMedia: true };
-    }
-
-    const rteMode = data.rteMode ?? data.rte_mode;
-    if (typeof rteMode === "string") {
-      return { checked: true, hasMedia: rteMode.toLowerCase() === "richtext" };
     }
 
     return { checked: false, hasMedia: false };
   } catch (error) {
-    console.warn("Failed to verify comment RTJSON:", error);
+    console.warn("Failed to verify comment content:", error);
     return { checked: false, hasMedia: false };
   }
 }
