@@ -100,6 +100,41 @@ function parseRichtextCandidate(candidate: unknown): unknown | null {
   return null;
 }
 
+function normalizeErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message || "";
+  }
+  if (typeof error === "string") {
+    return error;
+  }
+  return "";
+}
+
+function isMediaUploadRejected(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("too large") ||
+    normalized.includes("file size") ||
+    normalized.includes("unsupported") ||
+    normalized.includes("file type") ||
+    normalized.includes("format") ||
+    normalized.includes("mime") ||
+    normalized.includes("domain") ||
+    normalized.includes("url")
+  );
+}
+
+function isCommentMediaNotAllowed(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("media") &&
+    (normalized.includes("not allowed") ||
+      normalized.includes("inline") ||
+      normalized.includes("comments") ||
+      normalized.includes("comment"))
+  );
+}
+
 function richtextContainsMediaId(node: unknown, mediaId: string): boolean {
   if (!node || typeof node !== "object") {
     return false;
@@ -434,10 +469,13 @@ router.post("/api/share/comment", async (req: Request, res): Promise<void> => {
     });
   } catch (error) {
     console.error("Share image upload failed:", error);
+    const errorMessage = normalizeErrorMessage(error);
     const payload: ShareImageCommentResponse = {
       type: "share-image/post-comment",
       ok: false,
-      message: error instanceof Error ? error.message : "Failed to upload image",
+      message: isMediaUploadRejected(errorMessage)
+        ? "Image too large/unsupported format."
+        : errorMessage || "Failed to upload image",
       stage: "upload",
     };
     res.status(502).json(payload);
@@ -468,10 +506,33 @@ router.post("/api/share/comment", async (req: Request, res): Promise<void> => {
     });
   } catch (error) {
     console.error("Share image comment submit failed:", error);
+    const errorMessage = normalizeErrorMessage(error);
+    if (isCommentMediaNotAllowed(errorMessage)) {
+      try {
+        const normalizedParentId = normalizePostId(postId);
+        comment = await reddit.submitComment({
+          id: normalizedParentId,
+          text: caption,
+          runAs: "APP",
+        });
+        const payload: ShareImageCommentResponse = {
+          type: "share-image/post-comment",
+          ok: true,
+          degraded: true,
+          commentId: comment.id,
+          message: "Posted as text-only fallback.",
+          stage: "comment",
+        };
+        res.json(payload);
+        return;
+      } catch (fallbackError) {
+        console.error("Share image comment fallback failed:", fallbackError);
+      }
+    }
     const payload: ShareImageCommentResponse = {
       type: "share-image/post-comment",
       ok: false,
-      message: error instanceof Error ? error.message : "Failed to post comment",
+      message: errorMessage || "Failed to post comment",
       stage: "comment",
     };
     res.status(502).json(payload);
@@ -484,10 +545,10 @@ router.post("/api/share/comment", async (req: Request, res): Promise<void> => {
   if (mediaCheck.checked && !mediaCheck.hasMedia) {
     const payload: ShareImageCommentResponse = {
       type: "share-image/post-comment",
-      ok: false,
+      ok: true,
       commentId: comment.id,
       degraded: true,
-      message: "Comment posted, but image embed was stripped by subreddit/client settings.",
+      message: "Image uploaded, but this thread/subreddit doesn’t allow inline comment images.",
       stage: "comment",
     };
     res.json(payload);
