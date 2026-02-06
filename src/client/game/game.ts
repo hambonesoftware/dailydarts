@@ -285,6 +285,7 @@ export function mountGame(
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           score: payload.score ?? totalScore,
+          userId: payload.userId ?? getPlayerIdentity().userId,
           username: payload.username ?? getPlayerIdentity().username,
           postId: payload.postId ?? safePostId(),
           imageDataUrl: payload.imageDataUrl,
