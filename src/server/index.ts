@@ -134,6 +134,15 @@ function isCommentMediaNotAllowed(message: string): boolean {
   );
 }
 
+function isRateLimited(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("ratelimit") ||
+    normalized.includes("rate limit") ||
+    normalized.includes("too many requests")
+  );
+}
+
 function richtextContainsMediaId(node: unknown, mediaId: string): boolean {
   if (!node || typeof node !== "object") {
     return false;
@@ -478,6 +487,16 @@ router.post("/api/share/comment", async (req: Request, res): Promise<void> => {
   } catch (error) {
     console.error("Share image comment submit failed:", error);
     const errorMessage = normalizeErrorMessage(error);
+    if (isRateLimited(errorMessage)) {
+      const payload: ShareImageCommentResponse = {
+        type: "share-image/post-comment",
+        ok: false,
+        message: "You're rate limited. No comment was posted; please try again later.",
+        stage: "comment",
+      };
+      res.status(429).json(payload);
+      return;
+    }
     if (isCommentMediaNotAllowed(errorMessage)) {
       try {
         const normalizedParentId = normalizePostId(postId);
