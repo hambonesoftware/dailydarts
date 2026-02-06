@@ -205,6 +205,7 @@ export function mountGame(
   let dartScores: number[] = [];
   let boardReadyForGameplay = false;
   let roundEndShareImageUrl = "";
+  let pendingRoundEnd = false;
 
   function resetRound() {
     dartsThrown = 0;
@@ -212,6 +213,7 @@ export function mountGame(
     dartScores = [];
     roundActive = true;
     roundEndShareImageUrl = "";
+    pendingRoundEnd = false;
 
     if (typeof actionManager.setLogoMode === "function") {
       actionManager.setLogoMode("logo");
@@ -482,15 +484,19 @@ export function mountGame(
 
   if (typeof actionManager.setOnDartLanded === "function") {
     actionManager.setOnDartLanded(() => {
-      if (!pendingHitGlow) return;
-      if (!hitGlow) return;
+      if (pendingHitGlow && hitGlow) {
+        try {
+          hitGlow.setFromScore(pendingHitGlow);
+        } catch (err) {
+          console.warn("hitGlow.setFromScore failed", err);
+        } finally {
+          pendingHitGlow = null;
+        }
+      }
 
-      try {
-        hitGlow.setFromScore(pendingHitGlow);
-      } catch (err) {
-        console.warn("hitGlow.setFromScore failed", err);
-      } finally {
-        pendingHitGlow = null;
+      if (pendingRoundEnd && roundActive) {
+        pendingRoundEnd = false;
+        endRound();
       }
     });
   }
@@ -578,7 +584,7 @@ export function mountGame(
     roundHud.showToast(lastText);
 
     if (dartsThrown >= MAX_DARTS_PER_ROUND) {
-      endRound();
+      pendingRoundEnd = true;
     }
   }
 
