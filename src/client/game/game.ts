@@ -288,12 +288,12 @@ export function mountGame(
           responseBody && typeof responseBody.message === "string" ? responseBody.message.trim() : "";
 
         let toastMessage = "Post failed.";
-        if (stage === "upload") {
+        if (message) {
+          toastMessage = message;
+        } else if (stage === "upload") {
           toastMessage = "Upload failed.";
         } else if (stage === "comment") {
           toastMessage = "Comment failed.";
-        } else if (message) {
-          toastMessage = message;
         }
 
         roundHud.showToast(toastMessage);
@@ -307,6 +307,17 @@ export function mountGame(
             : "Comment posted, but image embed was stripped by subreddit/client settings.";
         roundHud.showToast(message);
         return;
+      }
+
+      if (responseBody && typeof responseBody === "object") {
+        const message =
+          typeof responseBody.message === "string" && responseBody.message.trim()
+            ? responseBody.message.trim()
+            : "";
+        if (message) {
+          roundHud.showToast(message);
+          return;
+        }
       }
 
       roundHud.showToast("Posted to comments!");
