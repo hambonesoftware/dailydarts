@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import express from "express";
 import type { Request } from "express";
 
@@ -116,6 +117,14 @@ function isRateLimited(message: string): boolean {
 
 function keyShareRateLimit(postId: string, userId: string) {
   return `dd:share:${postId}:${userId}`;
+}
+
+function keyShareImageCache(payloadHash: string) {
+  return `dd:share:image:${payloadHash}`;
+}
+
+function hashShareImagePayload(payload: string) {
+  return crypto.createHash("sha256").update(payload).digest("hex");
 }
 
 async function readLeaderboardStore(postId: string): Promise<LeaderboardStoreV1> {
@@ -355,6 +364,7 @@ router.post("/api/share/comment", async (req: Request, res): Promise<void> => {
   const body = (req.body ?? {}) as ShareImageCommentRequest;
   const now = Date.now();
   const shareRateLimitMs = 500 * 1000;
+  const shareImageCacheTtlSec = 60 * 60 * 24;
 
   if (!postId) {
     res.status(400).json({ status: "error", message: "postId is required" });
@@ -402,34 +412,48 @@ router.post("/api/share/comment", async (req: Request, res): Promise<void> => {
     return;
   }
 
-  let upload: { mediaId: string };
-  try {
-    upload = await media.upload({
-      url: imageDataUrl,
-      type: inferMediaType(imageDataUrl),
+  const payloadHash = hashShareImagePayload(imageDataUrl);
+  const cacheKey = keyShareImageCache(payloadHash);
+  const cachedMediaIdRaw = await (redis as any).get(cacheKey);
+  const cachedMediaId = typeof cachedMediaIdRaw === "string" ? cachedMediaIdRaw.trim() : "";
+
+  let mediaId = cachedMediaId;
+  if (!mediaId) {
+    let upload: { mediaId: string };
+    try {
+      upload = await media.upload({
+        url: imageDataUrl,
+        type: inferMediaType(imageDataUrl),
+      });
+    } catch (error) {
+      console.error("Share image upload failed:", error);
+      const errorMessage = normalizeErrorMessage(error);
+      const payload: ShareImageCommentResponse = {
+        type: "share-image/post-comment",
+        ok: false,
+        message: isMediaUploadRejected(errorMessage)
+          ? "Image too large/unsupported format."
+          : errorMessage || "Failed to upload image",
+        stage: "upload",
+      };
+      res.status(502).json(payload);
+      return;
+    }
+
+    mediaId = upload.mediaId;
+    console.debug("share/comment upload", {
+      mediaId: upload.mediaId,
+      mediaUrl: (upload as { mediaUrl?: string }).mediaUrl,
     });
-  } catch (error) {
-    console.error("Share image upload failed:", error);
-    const errorMessage = normalizeErrorMessage(error);
-    const payload: ShareImageCommentResponse = {
-      type: "share-image/post-comment",
-      ok: false,
-      message: isMediaUploadRejected(errorMessage)
-        ? "Image too large/unsupported format."
-        : errorMessage || "Failed to upload image",
-      stage: "upload",
-    };
-    res.status(502).json(payload);
-    return;
+
+    await (redis as any).set(cacheKey, mediaId);
+    await (redis as any).expire(cacheKey, shareImageCacheTtlSec);
+  } else {
+    console.debug("share/comment cache hit", { mediaId, cacheKey });
   }
 
-  console.debug("share/comment upload", {
-    mediaId: upload.mediaId,
-    mediaUrl: (upload as { mediaUrl?: string }).mediaUrl,
-  });
-
   const resultLine = `Round result: ${username} scored ${score}.`;
-  const richtextBuilder = new RichTextBuilder().text(resultLine).image({ mediaId: upload.mediaId });
+  const richtextBuilder = new RichTextBuilder().text(resultLine).image({ mediaId });
   const richtext = typeof richtextBuilder.build === "function" ? richtextBuilder.build() : richtextBuilder;
 
   let comment: { id: string };
