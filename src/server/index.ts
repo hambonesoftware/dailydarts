@@ -678,6 +678,24 @@ router.post("/internal/on-app-install", async (_req, res): Promise<void> => {
   }
 });
 
+router.get("/api/post/fetch", async (_req, res): Promise<void> => {
+  const { postId } = context;
+  if (!postId) {
+    res.status(400).json({ status: "error", message: "postId is required" });
+    return;
+  }
+
+  try {
+    const normalizedPostId = normalizePostId(postId);
+    const post = await reddit.getPostById(normalizedPostId);
+    const title = typeof post?.title === "string" ? post.title : "";
+    res.json({ type: "post-fetch", postId: normalizedPostId, title });
+  } catch (error) {
+    console.error("Error fetching post data", error);
+    res.status(502).json({ status: "error", message: "Failed to fetch post data" });
+  }
+});
+
 router.get("/api/post-title/suggest", async (_req, res): Promise<void> => {
   try {
     const title = await suggestNextPostTitle();
