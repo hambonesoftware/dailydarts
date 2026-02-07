@@ -179,26 +179,18 @@ function computeTopAndRank(store: LeaderboardStoreV1, callerUserId: string, limi
 
 async function resolveServerIdentity(): Promise<{ userId: string; displayName: string } | null> {
   const ctx = context as { userName?: string; userId?: string };
-  const contextUserName = typeof ctx.userName === "string" ? ctx.userName.trim() : "";
-  if (contextUserName) {
-    return { userId: contextUserName, displayName: contextUserName };
-  }
-
   const contextUserId = ctx.userId !== undefined && ctx.userId !== null ? String(ctx.userId).trim() : "";
-  if (contextUserId) {
-    return {
-      userId: contextUserId,
-      displayName: `u_${contextUserId.slice(0, 6)}`,
-    };
+  const contextUserName = typeof ctx.userName === "string" ? ctx.userName.trim() : "";
+  const redditUsernameRaw = await reddit.getCurrentUsername();
+  const redditUsername = typeof redditUsernameRaw === "string" ? redditUsernameRaw.trim() : "";
+
+  const userId = contextUserId || contextUserName || redditUsername;
+  if (!userId) {
+    return null;
   }
 
-  const redditUsername = await reddit.getCurrentUsername();
-  if (redditUsername && redditUsername.trim()) {
-    const normalized = redditUsername.trim();
-    return { userId: normalized, displayName: normalized };
-  }
-
-  return null;
+  const displayName = redditUsername || contextUserName || contextUserId || userId;
+  return { userId, displayName };
 }
 
 // ---------- Existing sample endpoints ----------
