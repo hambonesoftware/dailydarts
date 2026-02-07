@@ -5,7 +5,14 @@ const reserveNextPostTitle = async () => {
   return `Daily Darts #${seq}`;
 };
 
-export const suggestNextPostTitle = async () => reserveNextPostTitle();
+const peekNextPostTitle = async () => {
+  const currentRaw = await redis.get('dd:post-seq');
+  const current = currentRaw ? Number.parseInt(currentRaw, 10) : 0;
+  const next = Number.isFinite(current) ? current + 1 : 1;
+  return `Daily Darts #${next}`;
+};
+
+export const suggestNextPostTitle = async () => peekNextPostTitle();
 
 type CreatePostOptions = {
   title?: string;

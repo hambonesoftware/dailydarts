@@ -733,8 +733,16 @@ router.post("/api/post-create", async (req, res): Promise<void> => {
 
 router.post("/internal/menu/post-create", async (_req, res): Promise<void> => {
   try {
+    const { appSlug, subredditName, appVersion } = context;
+    if (!appSlug || !subredditName || !appVersion) {
+      const post = await createPost();
+      res.json({
+        navigateTo: `https://reddit.com/r/${context.subredditName}/comments/${post.id}`,
+      });
+      return;
+    }
     res.json({
-      navigateTo: `https://${context.appSlug}-${context.subredditName}-${context.appVersion}-webview.devvit.net/post-create.html`,
+      navigateTo: `https://${appSlug}-${subredditName}-${appVersion}.devvit.net/post-create.html`,
     });
   } catch (error) {
     console.error(`Error opening post-create flow: ${error}`);
