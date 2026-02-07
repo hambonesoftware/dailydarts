@@ -177,6 +177,30 @@ function computeTopAndRank(store: LeaderboardStoreV1, callerUserId: string, limi
   return { top, callerRank };
 }
 
+async function resolveServerIdentity(): Promise<{ userId: string; displayName: string } | null> {
+  const ctx = context as { userName?: string; userId?: string };
+  const contextUserName = typeof ctx.userName === "string" ? ctx.userName.trim() : "";
+  if (contextUserName) {
+    return { userId: contextUserName, displayName: contextUserName };
+  }
+
+  const contextUserId = ctx.userId !== undefined && ctx.userId !== null ? String(ctx.userId).trim() : "";
+  if (contextUserId) {
+    return {
+      userId: contextUserId,
+      displayName: `u_${contextUserId.slice(0, 6)}`,
+    };
+  }
+
+  const redditUsername = await reddit.getCurrentUsername();
+  if (redditUsername && redditUsername.trim()) {
+    const normalized = redditUsername.trim();
+    return { userId: normalized, displayName: normalized };
+  }
+
+  return null;
+}
+
 // ---------- Existing sample endpoints ----------
 router.get<{ postId: string }, InitResponse | { status: string; message: string }>(
   "/api/init",
@@ -263,15 +287,16 @@ router.post("/api/leaderboard/fetch", async (req: Request, res): Promise<void> =
 
   const body = (req.body ?? {}) as LeaderboardFetchRequest;
 
-  const userId =
-    (body && typeof body.userId === "string" && body.userId.trim()) ||
-    (await reddit.getCurrentUsername()) ||
-    "anonymous";
+  const identity = await resolveServerIdentity();
+  if (!identity) {
+    res.status(401).json({ status: "error", message: "authentication required" });
+    return;
+  }
 
   const limit = clampInt(body.limit, 1, 50, 5);
 
   const store = await readLeaderboardStore(postId);
-  const { top, callerRank } = computeTopAndRank(store, userId, limit);
+  const { top, callerRank } = computeTopAndRank(store, identity.userId, limit);
 
   const payload: LeaderboardFetchResponse = {
     type: "leaderboard-fetch",
@@ -292,21 +317,18 @@ router.post("/api/leaderboard/submit", async (req: Request, res): Promise<void> 
 
   const body = (req.body ?? {}) as LeaderboardSubmitRequest;
 
-  const userId =
-    (body && typeof body.userId === "string" && body.userId.trim()) ||
-    (await reddit.getCurrentUsername()) ||
-    "anonymous";
+  const identity = await resolveServerIdentity();
+  if (!identity) {
+    res.status(401).json({ status: "error", message: "authentication required" });
+    return;
+  }
 
   const scoreNum = typeof body.score === "number" ? body.score : Number(body.score);
   const score = Number.isFinite(scoreNum) ? Math.floor(scoreNum) : 0;
 
   const limit = clampInt(body.limit, 1, 50, 5);
 
-  // display name
-  const displayName =
-    (body.metadata && typeof body.metadata.username === "string" && body.metadata.username.trim()) ||
-    (await reddit.getCurrentUsername()) ||
-    userId;
+  const { userId, displayName } = identity;
 
   const store = await readLeaderboardStore(postId);
 
