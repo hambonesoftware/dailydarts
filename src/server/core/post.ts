@@ -1,14 +1,28 @@
 import { reddit, redis } from '@devvit/web/server';
 
+const postSeqKey = 'dd:post-seq';
+
+const isIntegerString = (value: string) => /^\d+$/.test(value);
+
+const ensurePostSeqInteger = async () => {
+  const currentRaw = await redis.get(postSeqKey);
+  if (currentRaw === null || isIntegerString(currentRaw)) {
+    return;
+  }
+
+  await redis.set(postSeqKey, '0');
+};
+
 const reserveNextPostTitle = async () => {
-  const seq = await redis.incr('dd:post-seq');
+  await ensurePostSeqInteger();
+  const seq = await redis.incr(postSeqKey);
   return `Daily Darts #${seq}`;
 };
 
 const peekNextPostTitle = async () => {
-  const currentRaw = await redis.get('dd:post-seq');
-  const current = currentRaw ? Number.parseInt(currentRaw, 10) : 0;
-  const next = Number.isFinite(current) ? current + 1 : 1;
+  const currentRaw = await redis.get(postSeqKey);
+  const current = currentRaw && isIntegerString(currentRaw) ? Number.parseInt(currentRaw, 10) : 0;
+  const next = current + 1;
   return `Daily Darts #${next}`;
 };
 
