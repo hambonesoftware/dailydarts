@@ -10,6 +10,9 @@
       },
       "game": {
         "entry": "game.html"
+      },
+      "post-create": {
+        "entry": "post-create.html"
       }
     }
   },
