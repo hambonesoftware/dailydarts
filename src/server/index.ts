@@ -566,7 +566,9 @@ router.post("/api/share/comment", async (req: Request, res): Promise<void> => {
   try {
     const normalizedParentId = normalizePostId(postId);
     console.debug("share/comment parent", { parentId: normalizedParentId });
-    const maxAttempts = 3;
+    const maxAttempts = 5;
+    const baseDelayMs = 500;
+    const maxDelayMs = 4_000;
     let attempt = 0;
     while (true) {
       attempt += 1;
@@ -580,17 +582,45 @@ router.post("/api/share/comment", async (req: Request, res): Promise<void> => {
         break;
       } catch (error) {
         const errorMessage = normalizeErrorMessage(error);
-        const shouldRetry = errorMessage.includes("IMAGE_MEDIA_IN_COMMENTS_PROCESSING_FAILURE");
+        const errorStatus =
+          typeof (error as { status?: number; statusCode?: number })?.status === "number"
+            ? (error as { status?: number }).status
+            : typeof (error as { statusCode?: number })?.statusCode === "number"
+              ? (error as { statusCode?: number }).statusCode
+              : undefined;
+        const normalizedMessage = errorMessage.toLowerCase();
+        const isTransientMessage =
+          normalizedMessage.includes("timeout") ||
+          normalizedMessage.includes("timed out") ||
+          normalizedMessage.includes("etimedout") ||
+          normalizedMessage.includes("econnreset") ||
+          normalizedMessage.includes("econnrefused") ||
+          normalizedMessage.includes("enotfound") ||
+          normalizedMessage.includes("eai_again") ||
+          normalizedMessage.includes("network") ||
+          normalizedMessage.includes("socket hang up");
+        const shouldRetry =
+          errorMessage.includes("IMAGE_MEDIA_IN_COMMENTS_PROCESSING_FAILURE") ||
+          (typeof errorStatus === "number" && errorStatus >= 500 && errorStatus < 600) ||
+          isTransientMessage;
         const hasAttemptsLeft = attempt < maxAttempts;
         console.warn("share/comment submit failed", {
           attempt,
           error: errorMessage || error,
+          status: errorStatus,
           retrying: shouldRetry && hasAttemptsLeft,
         });
         if (!shouldRetry || !hasAttemptsLeft) {
+          console.error("share/comment submit failed permanently", {
+            attempt,
+            error: errorMessage || error,
+            status: errorStatus,
+          });
           throw error;
         }
-        const delayMs = 500 + Math.floor(Math.random() * 1000);
+        const backoffMs = Math.min(baseDelayMs * 2 ** (attempt - 1), maxDelayMs);
+        const jitterMs = Math.floor(Math.random() * 250);
+        const delayMs = backoffMs + jitterMs;
         console.info("share/comment retry delay", { attempt, delayMs });
         await new Promise((resolve) => setTimeout(resolve, delayMs));
       }
