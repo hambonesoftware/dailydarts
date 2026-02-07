@@ -1,4 +1,5 @@
 import { navigateTo, context, requestExpandedMode } from "@devvit/web/client";
+import { unregisterServiceWorkers } from "../shared/service-worker";
 
 type LeaderboardEntry = {
   member: string;
@@ -19,6 +20,8 @@ type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 };
+
+void unregisterServiceWorkers();
 
 // ---- Config ----
 const LEADERBOARD_MAX_ROWS = 10;
