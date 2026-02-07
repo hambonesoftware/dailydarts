@@ -115,6 +115,82 @@ function isRateLimited(message: string): boolean {
   );
 }
 
+type MediaReadyParams = {
+  mediaId: string;
+  mediaUrl?: string;
+};
+
+type MediaReadyResult = { ok: true } | { ok: false; reason: "timeout" | "missing-url" };
+
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function waitForMediaReady({
+  mediaId,
+  mediaUrl,
+}: MediaReadyParams): Promise<MediaReadyResult> {
+  if (!mediaUrl) {
+    console.warn("share/comment missing mediaUrl for readiness check", { mediaId });
+    return { ok: false, reason: "missing-url" };
+  }
+
+  const timeoutMs = 15_000;
+  const start = Date.now();
+  let attempt = 0;
+  let delayMs = 250;
+
+  while (Date.now() - start < timeoutMs) {
+    attempt += 1;
+    try {
+      let response = await fetchWithTimeout(
+        mediaUrl,
+        {
+          method: "HEAD",
+          cache: "no-store",
+        },
+        4_000
+      );
+
+      if (response.status === 405) {
+        response = await fetchWithTimeout(
+          mediaUrl,
+          {
+            method: "GET",
+            cache: "no-store",
+          },
+          4_000
+        );
+      }
+
+      if (response.ok) {
+        console.debug("share/comment media ready", { mediaId, attempt });
+        return { ok: true };
+      }
+
+      if (response.status >= 500) {
+        console.debug("share/comment media not ready", { mediaId, attempt, status: response.status });
+      }
+    } catch (error) {
+      console.debug("share/comment media check failed", { mediaId, attempt, error });
+    }
+
+    const jitter = Math.floor(Math.random() * 150);
+    const waitMs = Math.min(delayMs + jitter, 2_000);
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+    delayMs = Math.min(delayMs * 2, 2_000);
+  }
+
+  console.warn("share/comment media readiness timed out", { mediaId });
+  return { ok: false, reason: "timeout" };
+}
+
 function keyShareRateLimit(postId: string, userId: string) {
   return `dd:share:${postId}:${userId}`;
 }
@@ -432,8 +508,9 @@ router.post("/api/share/comment", async (req: Request, res): Promise<void> => {
   const cachedMediaId = typeof cachedMediaIdRaw === "string" ? cachedMediaIdRaw.trim() : "";
 
   let mediaId = cachedMediaId;
+  let mediaUrl: string | undefined;
   if (!mediaId) {
-    let upload: { mediaId: string };
+    let upload: { mediaId: string; mediaUrl?: string };
     try {
       upload = await media.upload({
         url: imageDataUrl,
@@ -455,6 +532,7 @@ router.post("/api/share/comment", async (req: Request, res): Promise<void> => {
     }
 
     mediaId = upload.mediaId;
+    mediaUrl = upload.mediaUrl;
     console.debug("share/comment upload", {
       mediaId: upload.mediaId,
       mediaUrl: (upload as { mediaUrl?: string }).mediaUrl,
@@ -464,6 +542,18 @@ router.post("/api/share/comment", async (req: Request, res): Promise<void> => {
     await (redis as any).expire(cacheKey, shareImageCacheTtlSec);
   } else {
     console.debug("share/comment cache hit", { mediaId, cacheKey });
+  }
+
+  const readiness = await waitForMediaReady({ mediaId, mediaUrl });
+  if (!readiness.ok && readiness.reason === "timeout") {
+    const payload: ShareImageCommentResponse = {
+      type: "share-image/post-comment",
+      ok: false,
+      message: "Your image is still processing. Please retry in a moment.",
+      stage: "comment",
+    };
+    res.status(503).json(payload);
+    return;
   }
 
   const resultLine = `Round result: ${username} scored ${score}.`;
