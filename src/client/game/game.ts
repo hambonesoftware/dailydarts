@@ -758,10 +758,23 @@ export function mountGame(
     }
   }
 
+  const passivePointerListener = { passive: true };
   renderer.domElement.addEventListener("pointerdown", onAimPointerDown);
-  renderer.domElement.addEventListener("pointerup", onAimPointerUp);
-  renderer.domElement.addEventListener("pointercancel", onAimPointerCancel);
-  renderer.domElement.addEventListener("pointerleave", onAimPointerCancel);
+  renderer.domElement.addEventListener(
+    "pointerup",
+    onAimPointerUp,
+    passivePointerListener
+  );
+  renderer.domElement.addEventListener(
+    "pointercancel",
+    onAimPointerCancel,
+    passivePointerListener
+  );
+  renderer.domElement.addEventListener(
+    "pointerleave",
+    onAimPointerCancel,
+    passivePointerListener
+  );
 
   const startGameplay = () => {
     if (gameStarted) return;
