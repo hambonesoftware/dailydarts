@@ -387,16 +387,12 @@ export function mountGame(
   }
 
   async function submitRoundScore(score: number) {
-    const { userId, username } = getPlayerIdentity();
-
     const response = await fetch("/api/leaderboard/submit", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        userId,
         score,
         limit: LEADERBOARD_LIMIT,
-        metadata: { username },
       }),
     });
 
@@ -408,13 +404,10 @@ export function mountGame(
   }
 
   async function fetchLeaderboard() {
-    const { userId } = getPlayerIdentity();
-
     const response = await fetch("/api/leaderboard/fetch", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        userId,
         limit: LEADERBOARD_LIMIT,
       }),
     });
