@@ -280,16 +280,26 @@ export function mountGame(
     try {
       isPostingComment = true;
       roundHud.setPostToCommentsEnabled(false, "Posting...");
+      const identity = getPlayerIdentity();
+      const resolvedUserId =
+        payload.userId ?? (identity.isLoggedIn ? identity.userId : undefined);
+      const resolvedUsername =
+        payload.username ?? (identity.isLoggedIn ? identity.username : undefined);
+      const shareBody: Record<string, unknown> = {
+        score: payload.score ?? totalScore,
+        postId: payload.postId ?? safePostId(),
+        imageDataUrl: payload.imageDataUrl,
+      };
+      if (resolvedUserId) {
+        shareBody.userId = resolvedUserId;
+      }
+      if (resolvedUsername) {
+        shareBody.username = resolvedUsername;
+      }
       const response = await fetch("/api/share/comment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          score: payload.score ?? totalScore,
-          userId: payload.userId ?? getPlayerIdentity().userId,
-          username: payload.username ?? getPlayerIdentity().username,
-          postId: payload.postId ?? safePostId(),
-          imageDataUrl: payload.imageDataUrl,
-        }),
+        body: JSON.stringify(shareBody),
       });
 
       let responseBody: any = null;
@@ -358,12 +368,14 @@ export function mountGame(
   });
 
   function getPlayerIdentity() {
-    const username =
-      (context && typeof context.username === "string" && context.username) ||
-      "anonymous";
-    const userId =
-      (context && typeof context.userId === "string" && context.userId) || username;
-    return { username, userId };
+    const rawUsername =
+      context && typeof context.username === "string" ? context.username : "";
+    const rawUserId =
+      context && typeof context.userId === "string" ? context.userId : "";
+    const isLoggedIn = Boolean(rawUsername && rawUserId);
+    const username = isLoggedIn ? rawUsername : "Guest";
+    const userId = isLoggedIn ? rawUserId : "Guest";
+    return { username, userId, isLoggedIn };
   }
 
   function safePostId() {
@@ -420,10 +432,15 @@ export function mountGame(
   }
 
   async function finalizeRoundLeaderboard() {
-    try {
-      await submitRoundScore(totalScore);
-    } catch (error) {
-      console.warn("Failed to submit leaderboard score", error);
+    const identity = getPlayerIdentity();
+    if (identity.isLoggedIn) {
+      try {
+        await submitRoundScore(totalScore);
+      } catch (error) {
+        console.warn("Failed to submit leaderboard score", error);
+      }
+    } else {
+      roundHud.showToast("Log in to appear on leaderboard.");
     }
 
     try {
