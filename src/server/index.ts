@@ -17,7 +17,7 @@ import {
 
 import { RichTextBuilder } from "@devvit/public-api";
 import { redis, reddit, media, createServer, context, getServerPort } from "@devvit/web/server";
-import { createPost } from "./core/post";
+import { createPost, suggestNextPostTitle } from "./core/post";
 
 const app = express();
 
@@ -678,11 +678,30 @@ router.post("/internal/on-app-install", async (_req, res): Promise<void> => {
   }
 });
 
-router.post("/internal/menu/post-create", async (_req, res): Promise<void> => {
+router.get("/api/post-title/suggest", async (_req, res): Promise<void> => {
   try {
-    const post = await createPost();
+    const title = await suggestNextPostTitle();
+    res.json({ title });
+  } catch (error) {
+    console.error(`Error suggesting post title: ${error}`);
+    res.status(400).json({
+      status: "error",
+      message: "Failed to suggest post title",
+    });
+  }
+});
 
+router.post("/api/post-create", async (req, res): Promise<void> => {
+  try {
+    const title = typeof req.body?.title === "string" ? req.body.title.trim() : "";
+    if (!title) {
+      res.status(400).json({ status: "error", message: "Title is required" });
+      return;
+    }
+
+    const post = await createPost({ title });
     res.json({
+      postId: post.id,
       navigateTo: `https://reddit.com/r/${context.subredditName}/comments/${post.id}`,
     });
   } catch (error) {
@@ -690,6 +709,20 @@ router.post("/internal/menu/post-create", async (_req, res): Promise<void> => {
     res.status(400).json({
       status: "error",
       message: "Failed to create post",
+    });
+  }
+});
+
+router.post("/internal/menu/post-create", async (_req, res): Promise<void> => {
+  try {
+    res.json({
+      navigateTo: `https://${context.appSlug}-${context.subredditName}-${context.appVersion}-webview.devvit.net/post-create.html`,
+    });
+  } catch (error) {
+    console.error(`Error opening post-create flow: ${error}`);
+    res.status(400).json({
+      status: "error",
+      message: "Failed to open post create form",
     });
   }
 });

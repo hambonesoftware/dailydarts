@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, width=device-width, height=device-height, user-scalable=0"
+    />
+    <link rel="stylesheet" type="text/css" href="post-create/post-create.css" />
+    <title>Create Daily Darts Post</title>
+  </head>
+
+  <body class="post-create">
+    <main class="card">
+      <h1>Create Daily Darts Post</h1>
+      <p class="subtitle">Review the title before creating the post.</p>
+
+      <form id="post-create-form">
+        <label class="field">
+          <span class="label">Post title</span>
+          <input id="title-input" name="title" type="text" required />
+        </label>
+
+        <div class="actions">
+          <button id="submit-button" type="submit">Create post</button>
+        </div>
+        <p class="status" id="status" role="status" aria-live="polite"></p>
+      </form>
+    </main>
+
+    <script type="module" src="post-create/post-create.ts"></script>
+  </body>
+</html>
