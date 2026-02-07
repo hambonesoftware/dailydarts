@@ -1,3 +1,5 @@
+import { unregisterServiceWorkers } from "../shared/service-worker";
+
 type SuggestResponse = {
   title?: string;
 };
@@ -6,6 +8,8 @@ type CreateResponse = {
   navigateTo?: string;
   message?: string;
 };
+
+void unregisterServiceWorkers();
 
 const titleInput = document.querySelector<HTMLInputElement>('#title-input');
 const form = document.querySelector<HTMLFormElement>('#post-create-form');
