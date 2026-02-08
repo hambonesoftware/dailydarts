@@ -199,6 +199,10 @@ function keyShareImageCache(payloadHash: string) {
   return `dd:share:image:${payloadHash}`;
 }
 
+function keyShareImageMediaUrl(mediaId: string) {
+  return `dd:share:image:media-url:${mediaId}`;
+}
+
 function hashShareImagePayload(payload: string) {
   return crypto.createHash("sha256").update(payload).digest("hex");
 }
@@ -222,6 +226,42 @@ async function readLeaderboardStore(postId: string): Promise<LeaderboardStoreV1>
     // If parse fails, start fresh.
     return { version: 1, users: {} };
   }
+}
+
+type ShareImageCacheEntry = {
+  mediaId: string;
+  mediaUrl?: string;
+};
+
+function parseShareImageCache(raw: unknown): ShareImageCacheEntry | null {
+  if (typeof raw !== "string" || !raw.trim()) {
+    return null;
+  }
+
+  const trimmed = raw.trim();
+  if (trimmed.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(trimmed) as unknown;
+      if (
+        parsed &&
+        typeof parsed === "object" &&
+        typeof (parsed as ShareImageCacheEntry).mediaId === "string" &&
+        (parsed as ShareImageCacheEntry).mediaId.trim()
+      ) {
+        return {
+          mediaId: (parsed as ShareImageCacheEntry).mediaId.trim(),
+          mediaUrl:
+            typeof (parsed as ShareImageCacheEntry).mediaUrl === "string"
+              ? (parsed as ShareImageCacheEntry).mediaUrl
+              : undefined,
+        };
+      }
+    } catch (error) {
+      console.warn("share/comment failed to parse cache payload", { error });
+    }
+  }
+
+  return { mediaId: trimmed };
 }
 
 async function writeLeaderboardStore(postId: string, store: LeaderboardStoreV1): Promise<void> {
@@ -504,11 +544,11 @@ router.post("/api/share/comment", async (req: Request, res): Promise<void> => {
 
   const payloadHash = hashShareImagePayload(imageDataUrl);
   const cacheKey = keyShareImageCache(payloadHash);
-  const cachedMediaIdRaw = await (redis as any).get(cacheKey);
-  const cachedMediaId = typeof cachedMediaIdRaw === "string" ? cachedMediaIdRaw.trim() : "";
+  const cachedMediaRaw = await (redis as any).get(cacheKey);
+  const cachedEntry = parseShareImageCache(cachedMediaRaw);
 
-  let mediaId = cachedMediaId;
-  let mediaUrl: string | undefined;
+  let mediaId = cachedEntry?.mediaId ?? "";
+  let mediaUrl: string | undefined = cachedEntry?.mediaUrl;
   if (!mediaId) {
     let upload: { mediaId: string; mediaUrl?: string };
     try {
@@ -538,18 +578,33 @@ router.post("/api/share/comment", async (req: Request, res): Promise<void> => {
       mediaUrl: (upload as { mediaUrl?: string }).mediaUrl,
     });
 
-    await (redis as any).set(cacheKey, mediaId);
+    const cachePayload: ShareImageCacheEntry = { mediaId, mediaUrl };
+    await (redis as any).set(cacheKey, JSON.stringify(cachePayload));
     await (redis as any).expire(cacheKey, shareImageCacheTtlSec);
+    if (mediaUrl) {
+      const mediaUrlKey = keyShareImageMediaUrl(mediaId);
+      await (redis as any).set(mediaUrlKey, mediaUrl);
+      await (redis as any).expire(mediaUrlKey, shareImageCacheTtlSec);
+    }
   } else {
-    console.debug("share/comment cache hit", { mediaId, cacheKey });
+    if (!mediaUrl) {
+      const mediaUrlKey = keyShareImageMediaUrl(mediaId);
+      const cachedMediaUrlRaw = await (redis as any).get(mediaUrlKey);
+      mediaUrl = typeof cachedMediaUrlRaw === "string" ? cachedMediaUrlRaw.trim() : undefined;
+    }
+    console.debug("share/comment cache hit", { mediaId, cacheKey, hasMediaUrl: Boolean(mediaUrl) });
   }
 
   const readiness = await waitForMediaReady({ mediaId, mediaUrl });
-  if (!readiness.ok && readiness.reason === "timeout") {
+  if (!readiness.ok) {
+    const message =
+      readiness.reason === "missing-url"
+        ? "Your image is still processing. Please retry in a moment."
+        : "Your image is still processing. Please retry in a moment.";
     const payload: ShareImageCommentResponse = {
       type: "share-image/post-comment",
       ok: false,
-      message: "Your image is still processing. Please retry in a moment.",
+      message,
       stage: "comment",
     };
     res.status(503).json(payload);
