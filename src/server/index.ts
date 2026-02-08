@@ -118,6 +118,9 @@ function isRateLimited(message: string): boolean {
 type MediaReadyParams = {
   mediaId: string;
   mediaUrl?: string;
+  timeoutMs?: number;
+  initialDelayMs?: number;
+  maxDelayMs?: number;
 };
 
 type MediaReadyResult = { ok: true } | { ok: false; reason: "timeout" | "missing-url" };
@@ -135,16 +138,18 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: numbe
 async function waitForMediaReady({
   mediaId,
   mediaUrl,
+  timeoutMs = 15_000,
+  initialDelayMs = 250,
+  maxDelayMs = 2_000,
 }: MediaReadyParams): Promise<MediaReadyResult> {
   if (!mediaUrl) {
     console.warn("share/comment missing mediaUrl for readiness check", { mediaId });
     return { ok: false, reason: "missing-url" };
   }
 
-  const timeoutMs = 15_000;
   const start = Date.now();
   let attempt = 0;
-  let delayMs = 250;
+  let delayMs = initialDelayMs;
 
   while (Date.now() - start < timeoutMs) {
     attempt += 1;
@@ -182,9 +187,9 @@ async function waitForMediaReady({
     }
 
     const jitter = Math.floor(Math.random() * 150);
-    const waitMs = Math.min(delayMs + jitter, 2_000);
+    const waitMs = Math.min(delayMs + jitter, maxDelayMs);
     await new Promise((resolve) => setTimeout(resolve, waitMs));
-    delayMs = Math.min(delayMs * 2, 2_000);
+    delayMs = Math.min(delayMs * 2, maxDelayMs);
   }
 
   console.warn("share/comment media readiness timed out", { mediaId });
@@ -654,8 +659,30 @@ router.post("/api/share/comment", async (req: Request, res): Promise<void> => {
           normalizedMessage.includes("eai_again") ||
           normalizedMessage.includes("network") ||
           normalizedMessage.includes("socket hang up");
+        const isProcessingFailure = errorMessage.includes(
+          "IMAGE_MEDIA_IN_COMMENTS_PROCESSING_FAILURE"
+        );
+        if (isProcessingFailure) {
+          const readiness = await waitForMediaReady({
+            mediaId,
+            mediaUrl,
+            timeoutMs: 30_000,
+            initialDelayMs: 500,
+            maxDelayMs: 3_000,
+          });
+          if (!readiness.ok) {
+            const payload: ShareImageCommentResponse = {
+              type: "share-image/post-comment",
+              ok: false,
+              message: "Your image is still processing. Please retry in a moment.",
+              stage: "comment",
+            };
+            res.status(503).json(payload);
+            return;
+          }
+        }
         const shouldRetry =
-          errorMessage.includes("IMAGE_MEDIA_IN_COMMENTS_PROCESSING_FAILURE") ||
+          isProcessingFailure ||
           (typeof errorStatus === "number" && errorStatus >= 500 && errorStatus < 600) ||
           isTransientMessage;
         const hasAttemptsLeft = attempt < maxAttempts;
