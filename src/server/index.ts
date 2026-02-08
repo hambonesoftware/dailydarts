@@ -648,6 +648,14 @@ router.post("/api/share/comment", async (req: Request, res): Promise<void> => {
             : typeof (error as { statusCode?: number })?.statusCode === "number"
               ? (error as { statusCode?: number }).statusCode
               : undefined;
+        const statusFromMessageMatch = errorStatus
+          ? null
+          : errorMessage.match(/http status(?: code)?\s*(\d{3})/i);
+        const statusFromMessage = statusFromMessageMatch
+          ? Number(statusFromMessageMatch[1])
+          : undefined;
+        const derivedStatus =
+          typeof errorStatus === "number" ? errorStatus : statusFromMessage;
         const normalizedMessage = errorMessage.toLowerCase();
         const isTransientMessage =
           normalizedMessage.includes("timeout") ||
@@ -683,20 +691,20 @@ router.post("/api/share/comment", async (req: Request, res): Promise<void> => {
         }
         const shouldRetry =
           isProcessingFailure ||
-          (typeof errorStatus === "number" && errorStatus >= 500 && errorStatus < 600) ||
+          (typeof derivedStatus === "number" && derivedStatus >= 500 && derivedStatus < 600) ||
           isTransientMessage;
         const hasAttemptsLeft = attempt < maxAttempts;
         console.warn("share/comment submit failed", {
           attempt,
           error: errorMessage || error,
-          status: errorStatus,
+          status: derivedStatus,
           retrying: shouldRetry && hasAttemptsLeft,
         });
         if (!shouldRetry || !hasAttemptsLeft) {
           console.error("share/comment submit failed permanently", {
             attempt,
             error: errorMessage || error,
-            status: errorStatus,
+            status: derivedStatus,
           });
           throw error;
         }
