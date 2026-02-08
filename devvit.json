@@ -17,6 +17,10 @@
     "dir": "dist/server",
     "entry": "index.cjs"
   },
+  "permissions": {
+    "media": true,
+    "redditAPI": true
+  },
   "media": {
     "dir": "assets"
   },
