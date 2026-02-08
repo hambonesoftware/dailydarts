@@ -23,7 +23,6 @@ const AIM_DISC_Z = DART_TARGET_OFFSET + 0.06;
 const MAX_DARTS_PER_ROUND = 10;
 const LEADERBOARD_LIMIT = 5;
 const MAX_SHARE_IMAGE_DATA_URL_LENGTH = 3_000_000;
-const FALLBACK_POST_TITLE = "Daily Darts";
 
 declare global {
   interface Window {
@@ -61,14 +60,6 @@ export function mountGame(
   { onLoadingProgress, onLoadingDone }: LoadingCallbacks = {}
 ): { dispose(): void } {
   const quality = getQualitySettings();
-  const anyContext = context as any;
-  const contextPostTitle =
-    typeof anyContext?.postTitle === "string"
-      ? anyContext.postTitle.trim()
-      : typeof anyContext?.post?.title === "string"
-        ? anyContext.post.title.trim()
-        : "";
-  let postTitle = contextPostTitle || FALLBACK_POST_TITLE;
 
   function createLazyEffects(sceneRef: THREE.Scene) {
     let fireworksSystem: any = null;
@@ -206,42 +197,23 @@ export function mountGame(
   });
 
   roundHud.setVisible(false);
-  updateHudState();
+  roundHud.setState({ dartsThrown: 0, totalScore: 0, lastText: "—" });
 
   let roundActive = false;
   let dartsThrown = 0;
   let totalScore = 0;
   let dartScores: number[] = [];
-  let lastHitText = "—";
   let boardReadyForGameplay = false;
   let roundEndShareImageUrl = "";
   let pendingRoundEnd = false;
   let isPostingComment = false;
   let hasPostedComment = false;
 
-  function updateHudState() {
-    roundHud.setState({
-      dartsThrown,
-      totalScore,
-      lastText: lastHitText,
-      postTitle,
-    });
-  }
-
-  function setPostTitle(nextTitle: string) {
-    const trimmed = nextTitle.trim();
-    const resolved = trimmed || FALLBACK_POST_TITLE;
-    if (resolved === postTitle) return;
-    postTitle = resolved;
-    updateHudState();
-  }
-
   function resetRound() {
     dartsThrown = 0;
     totalScore = 0;
     dartScores = [];
     roundActive = true;
-    lastHitText = "—";
     roundEndShareImageUrl = "";
     pendingRoundEnd = false;
     isPostingComment = false;
@@ -252,7 +224,11 @@ export function mountGame(
     }
 
     roundHud.setVisible(true);
-    updateHudState();
+    roundHud.setState({
+      dartsThrown,
+      totalScore,
+      lastText: "—",
+    });
 
     requestRender();
   }
@@ -272,7 +248,6 @@ export function mountGame(
       shareImageUrl: roundEndShareImageUrl,
       username: getPlayerIdentity().username,
       postId: safePostId(),
-      postTitle,
       posted: hasPostedComment,
     });
 
@@ -408,26 +383,6 @@ export function mountGame(
     return anyCtx?.postId ?? anyCtx?.post?.id ?? anyCtx?.post?.name ?? undefined;
   }
 
-  async function fetchPostTitle() {
-    if (contextPostTitle) return;
-    const postId = safePostId();
-    if (!postId) return;
-    try {
-      const response = await fetch("/api/post/fetch");
-      if (!response.ok) {
-        return;
-      }
-      const payload = await response.json();
-      const fetchedTitle =
-        payload && typeof payload.title === "string" ? payload.title.trim() : "";
-      if (fetchedTitle) {
-        setPostTitle(fetchedTitle);
-      }
-    } catch (error) {
-      console.warn("Failed to fetch post title", error);
-    }
-  }
-
   function buildShareCardData(score: number) {
     const { username } = getPlayerIdentity();
     return {
@@ -504,7 +459,6 @@ export function mountGame(
           shareImageUrl: roundEndShareImageUrl,
           username: payload.username,
           postId: safePostId(),
-          postTitle,
         });
       }
     } catch (error) {
@@ -632,8 +586,12 @@ export function mountGame(
     }
 
     const lastText = formatHitForHud(scoreResult);
-    lastHitText = lastText;
-    updateHudState();
+
+    roundHud.setState({
+      dartsThrown,
+      totalScore,
+      lastText,
+    });
 
     if (dartboard && dartboard.userData) {
       const nums = dartboard?.userData?.scoring?.numbers;
@@ -758,23 +716,10 @@ export function mountGame(
     }
   }
 
-  const passivePointerListener = { passive: true };
   renderer.domElement.addEventListener("pointerdown", onAimPointerDown);
-  renderer.domElement.addEventListener(
-    "pointerup",
-    onAimPointerUp,
-    passivePointerListener
-  );
-  renderer.domElement.addEventListener(
-    "pointercancel",
-    onAimPointerCancel,
-    passivePointerListener
-  );
-  renderer.domElement.addEventListener(
-    "pointerleave",
-    onAimPointerCancel,
-    passivePointerListener
-  );
+  renderer.domElement.addEventListener("pointerup", onAimPointerUp);
+  renderer.domElement.addEventListener("pointercancel", onAimPointerCancel);
+  renderer.domElement.addEventListener("pointerleave", onAimPointerCancel);
 
   const startGameplay = () => {
     if (gameStarted) return;
@@ -1085,7 +1030,6 @@ export function mountGame(
 
   requestRender = renderScheduler.requestRender;
   renderScheduler.start();
-  void fetchPostTitle();
 
   const handleResize = () => {
     const nextQuality = getQualitySettings();

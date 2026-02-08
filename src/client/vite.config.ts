@@ -32,7 +32,6 @@ export default defineConfig({
       input: {
         splash: 'splash.html',
         game: 'game.html',
-        'post-create': 'post-create.html',
       },
       output: {
         entryFileNames: '[name].js',

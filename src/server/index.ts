@@ -17,7 +17,7 @@ import {
 
 import { RichTextBuilder } from "@devvit/public-api";
 import { redis, reddit, media, createServer, context, getServerPort } from "@devvit/web/server";
-import { createPost, suggestNextPostTitle } from "./core/post";
+import { createPost } from "./core/post";
 
 const app = express();
 
@@ -678,48 +678,11 @@ router.post("/internal/on-app-install", async (_req, res): Promise<void> => {
   }
 });
 
-router.get("/api/post/fetch", async (_req, res): Promise<void> => {
-  const { postId } = context;
-  if (!postId) {
-    res.status(400).json({ status: "error", message: "postId is required" });
-    return;
-  }
-
+router.post("/internal/menu/post-create", async (_req, res): Promise<void> => {
   try {
-    const normalizedPostId = normalizePostId(postId);
-    const post = await reddit.getPostById(normalizedPostId);
-    const title = typeof post?.title === "string" ? post.title : "";
-    res.json({ type: "post-fetch", postId: normalizedPostId, title });
-  } catch (error) {
-    console.error("Error fetching post data", error);
-    res.status(502).json({ status: "error", message: "Failed to fetch post data" });
-  }
-});
+    const post = await createPost();
 
-router.get("/api/post-title/suggest", async (_req, res): Promise<void> => {
-  try {
-    const title = await suggestNextPostTitle();
-    res.json({ title });
-  } catch (error) {
-    console.error(`Error suggesting post title: ${error}`);
-    res.status(400).json({
-      status: "error",
-      message: "Failed to suggest post title",
-    });
-  }
-});
-
-router.post("/api/post-create", async (req, res): Promise<void> => {
-  try {
-    const title = typeof req.body?.title === "string" ? req.body.title.trim() : "";
-    if (!title) {
-      res.status(400).json({ status: "error", message: "Title is required" });
-      return;
-    }
-
-    const post = await createPost({ title });
     res.json({
-      postId: post.id,
       navigateTo: `https://reddit.com/r/${context.subredditName}/comments/${post.id}`,
     });
   } catch (error) {
@@ -727,28 +690,6 @@ router.post("/api/post-create", async (req, res): Promise<void> => {
     res.status(400).json({
       status: "error",
       message: "Failed to create post",
-    });
-  }
-});
-
-router.post("/internal/menu/post-create", async (_req, res): Promise<void> => {
-  try {
-    const { appSlug, subredditName, appVersion } = context;
-    if (!appSlug || !subredditName || !appVersion) {
-      const post = await createPost();
-      res.json({
-        navigateTo: `https://reddit.com/r/${context.subredditName}/comments/${post.id}`,
-      });
-      return;
-    }
-    res.json({
-      navigateTo: `https://${appSlug}-${subredditName}-${appVersion}.devvit.net/post-create.html`,
-    });
-  } catch (error) {
-    console.error(`Error opening post-create flow: ${error}`);
-    res.status(400).json({
-      status: "error",
-      message: "Failed to open post create form",
     });
   }
 });

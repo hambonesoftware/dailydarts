@@ -1,5 +1,4 @@
 import { navigateTo, context, requestExpandedMode } from "@devvit/web/client";
-import { unregisterServiceWorkers } from "../shared/service-worker";
 
 type LeaderboardEntry = {
   member: string;
@@ -15,13 +14,6 @@ const titleElement = document.getElementById("title") as HTMLHeadingElement | nu
 
 const canvas = document.getElementById("splash-canvas") as HTMLCanvasElement | null;
 const ctx = canvas ? canvas.getContext("2d") : null;
-
-type BeforeInstallPromptEvent = Event & {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
-};
-
-void unregisterServiceWorkers();
 
 // ---- Config ----
 const LEADERBOARD_MAX_ROWS = 10;
@@ -43,7 +35,6 @@ let leaderboardError = "";
 
 let lastFrameTs = 0;
 let animRunning = true;
-let deferredInstallPrompt: BeforeInstallPromptEvent | null = null;
 
 // ---- Background Image ----
 const bgImage = new Image();
@@ -81,11 +72,7 @@ function safePostId(): string | undefined {
 
 function bindUI() {
   if (startButton) {
-    startButton.addEventListener("click", async (e) => {
-      if (deferredInstallPrompt) {
-        await deferredInstallPrompt.prompt();
-        deferredInstallPrompt = null;
-      }
+    startButton.addEventListener("click", (e) => {
       requestExpandedMode(e, "game");
     });
   }
@@ -99,13 +86,6 @@ function bindUI() {
   if (discordLink) {
     discordLink.addEventListener("click", () => navigateTo("https://discord.com/invite/R7yu2wh9Qz"));
   }
-}
-
-function installBeforeInstallPromptHandler() {
-  window.addEventListener("beforeinstallprompt", (event) => {
-    event.preventDefault();
-    deferredInstallPrompt = event as BeforeInstallPromptEvent;
-  });
 }
 
 function setTitleTextForHTML() {
@@ -502,7 +482,6 @@ function startLeaderboardRefresh() {
 function init() {
   bindUI();
   setTitleTextForHTML();
-  installBeforeInstallPromptHandler();
   installResizeHandler();
   installVisibilityHandler();
 

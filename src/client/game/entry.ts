@@ -1,6 +1,5 @@
 import { loadGame } from "./index";
 import * as THREE from "three";
-import { unregisterServiceWorkers } from "../shared/service-worker";
 
 // --- UTILS ---
 function ensureAppMount() {
@@ -115,8 +114,6 @@ function createArcadeLoader(app) {
 }
 
 // --- BOOTSTRAP ---
-void unregisterServiceWorkers();
-
 const app = ensureAppMount();
 const arcadeLoader = createArcadeLoader(app);
 

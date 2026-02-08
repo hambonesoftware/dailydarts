@@ -274,19 +274,6 @@ function ensureHudStyles() {
   text-align: center;
 }
 
-#dd-roundend .dd-roundend-post-title {
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  font-weight: 600;
-  font-size: 13px;
-  letter-spacing: 0.2px;
-  color: rgba(255,255,255,0.75);
-  text-align: center;
-  max-width: min(420px, 90%);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 #dd-roundend .dd-roundend-score {
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
   font-weight: 900;
@@ -569,10 +556,6 @@ export function createRoundHud(options = {}) {
   roundEndTitle.className = "dd-roundend-title";
   roundEndTitle.textContent = "Round Complete";
 
-  const roundEndPostTitle = document.createElement("div");
-  roundEndPostTitle.className = "dd-roundend-post-title";
-  roundEndPostTitle.textContent = "Daily Darts";
-
   const roundEndScore = document.createElement("div");
   roundEndScore.className = "dd-roundend-score";
   roundEndScore.textContent = "Score: 0";
@@ -622,7 +605,6 @@ export function createRoundHud(options = {}) {
 
   roundEndHeader.appendChild(roundEndLogo);
   roundEndHeader.appendChild(roundEndTitle);
-  roundEndHeader.appendChild(roundEndPostTitle);
 
   roundEndLeaderboard.appendChild(roundEndLeaderboardBody);
 
@@ -644,7 +626,6 @@ export function createRoundHud(options = {}) {
   let onPlayAgainCb = null;
   let onPostToCommentsCb = null;
   let lastRoundShare = null;
-  let currentPostTitle = "Daily Darts";
 
   function setOnPlayAgain(cb) {
     onPlayAgainCb = typeof cb === "function" ? cb : null;
@@ -663,7 +644,6 @@ export function createRoundHud(options = {}) {
     const shareImageUrl = safeStr(summary.shareImageUrl, "");
     const shareUsername = safeStr(summary.username, "");
     const sharePostId = safeStr(summary.postId, "");
-    const postTitle = safeStr(summary.postTitle, currentPostTitle) || currentPostTitle;
     const hasPosted = Boolean(summary.posted);
     const leaderboard = summary?.leaderboard ?? null;
     const entries = Array.isArray(leaderboard?.top) ? leaderboard.top : [];
@@ -677,7 +657,6 @@ export function createRoundHud(options = {}) {
       setPostToCommentsEnabled(Boolean(shareImageUrl), defaultPostLabel);
     }
     roundEndTitle.textContent = leaderboard ? "Leaderboard" : "Round Complete";
-    roundEndPostTitle.textContent = postTitle;
     roundEndFooterLine.textContent =
       typeof rankValue === "number" ? `You are #${rankValue}` : "You are #—";
 
@@ -776,12 +755,10 @@ export function createRoundHud(options = {}) {
     const dartsThrown = clamp(safeInt(state?.dartsThrown, 0), 0, maxDarts);
     const totalScore = safeInt(state?.totalScore, 0);
     const lastText = safeStr(state?.lastText, "—");
-    const postTitle = safeStr(state?.postTitle, currentPostTitle) || currentPostTitle;
 
     scoreEl.textContent = `Score: ${totalScore}`;
     dartsEl.textContent = `Darts: ${dartsThrown}/${maxDarts}`;
     lastEl.textContent = `Last: ${lastText}`;
-    currentPostTitle = postTitle;
 
     for (let i = 0; i < dotEls.length; i++) {
       if (i < dartsThrown) {
