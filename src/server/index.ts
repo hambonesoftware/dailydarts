@@ -556,24 +556,73 @@ router.post("/api/share/comment", async (req: Request, res): Promise<void> => {
   let mediaUrl: string | undefined = cachedEntry?.mediaUrl;
   if (!mediaId) {
     let upload: { mediaId: string; mediaUrl?: string };
-    try {
-      upload = await media.upload({
-        url: imageDataUrl,
-        type: inferMediaType(imageDataUrl),
-      });
-    } catch (error) {
-      console.error("Share image upload failed:", error);
-      const errorMessage = normalizeErrorMessage(error);
-      const payload: ShareImageCommentResponse = {
-        type: "share-image/post-comment",
-        ok: false,
-        message: isMediaUploadRejected(errorMessage)
-          ? "Image too large/unsupported format."
-          : errorMessage || "Failed to upload image",
-        stage: "upload",
-      };
-      res.status(502).json(payload);
-      return;
+    const maxAttempts = 3;
+    const baseDelayMs = 500;
+    const maxDelayMs = 4_000;
+    let attempt = 0;
+    while (true) {
+      attempt += 1;
+      try {
+        upload = await media.upload({
+          url: imageDataUrl,
+          type: inferMediaType(imageDataUrl),
+        });
+        break;
+      } catch (error) {
+        console.error("Share image upload failed:", error);
+        const errorMessage = normalizeErrorMessage(error);
+        const errorStatus =
+          typeof (error as { status?: number; statusCode?: number })?.status === "number"
+            ? (error as { status?: number }).status
+            : typeof (error as { statusCode?: number })?.statusCode === "number"
+              ? (error as { statusCode?: number }).statusCode
+              : undefined;
+        const statusFromMessageMatch = errorStatus
+          ? null
+          : errorMessage.match(/http status(?: code)?\s*(\d{3})/i);
+        const statusFromMessage = statusFromMessageMatch
+          ? Number(statusFromMessageMatch[1])
+          : undefined;
+        const derivedStatus =
+          typeof errorStatus === "number" ? errorStatus : statusFromMessage;
+        const rateLimited =
+          derivedStatus === 429 || (errorMessage && isRateLimited(errorMessage));
+        const shouldRetry = rateLimited;
+        const hasAttemptsLeft = attempt < maxAttempts;
+        console.warn("share/comment upload failed", {
+          attempt,
+          error: errorMessage || error,
+          status: derivedStatus,
+          retrying: shouldRetry && hasAttemptsLeft,
+        });
+        if (rateLimited && !hasAttemptsLeft) {
+          const payload: ShareImageCommentResponse = {
+            type: "share-image/post-comment",
+            ok: false,
+            message: "You're rate limited. Please try again in a few moments.",
+            stage: "upload",
+          };
+          res.status(429).json(payload);
+          return;
+        }
+        if (!shouldRetry || !hasAttemptsLeft) {
+          const payload: ShareImageCommentResponse = {
+            type: "share-image/post-comment",
+            ok: false,
+            message: isMediaUploadRejected(errorMessage)
+              ? "Image too large/unsupported format."
+              : errorMessage || "Failed to upload image",
+            stage: "upload",
+          };
+          res.status(502).json(payload);
+          return;
+        }
+        const backoffMs = Math.min(baseDelayMs * 2 ** (attempt - 1), maxDelayMs);
+        const jitterMs = Math.floor(Math.random() * 250);
+        const delayMs = backoffMs + jitterMs;
+        console.info("share/comment upload retry delay", { attempt, delayMs });
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
     }
 
     mediaId = upload.mediaId;
